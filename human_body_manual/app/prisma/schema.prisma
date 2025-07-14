@@ -8,3 +8,107 @@ datasource db {
     provider = "postgresql"
     url      = env("DATABASE_URL")
 }
+
+// User model for authentication and profile
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Progress tracking relationships
+  progress     UserProgress[]
+  achievements UserAchievement[]
+  streaks      UserStreak[]
+  insights     UserInsight[]
+
+  @@map("users")
+}
+
+// Core progress tracking table
+model UserProgress {
+  id              String   @id @default(cuid())
+  userId          String
+  exerciseId      String
+  bodyArea        String
+  completedAt     DateTime
+  durationMinutes Int?
+  difficultyLevel String
+  sessionNotes    String?
+  biometricData   Json?
+  mood            String?
+  energyLevel     String?
+  createdAt       DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completedAt])
+  @@index([userId, bodyArea])
+  @@index([exerciseId])
+  @@map("user_progress")
+}
+
+// Achievement definitions
+model Achievement {
+  id          String  @id @default(cuid())
+  name        String
+  description String
+  category    String
+  criteria    Json
+  badgeIcon   String?
+  points      Int     @default(0)
+  rarity      String  @default("common")
+  createdAt   DateTime @default(now())
+
+  userAchievements UserAchievement[]
+
+  @@map("achievements")
+}
+
+// User achievement tracking
+model UserAchievement {
+  id               String   @id @default(cuid())
+  userId           String
+  achievementId    String
+  earnedAt         DateTime @default(now())
+  progressSnapshot Json?
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_achievements")
+}
+
+// Streak tracking
+model UserStreak {
+  id               String    @id @default(cuid())
+  userId           String
+  streakType       String
+  currentCount     Int       @default(0)
+  bestCount        Int       @default(0)
+  lastActivityDate DateTime?
+  startedAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, streakType])
+  @@map("user_streaks")
+}
+
+// Analytics and insights
+model UserInsight {
+  id           String    @id @default(cuid())
+  userId       String
+  insightType  String
+  content      Json
+  generatedAt  DateTime  @default(now())
+  viewedAt     DateTime?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, insightType])
+  @@map("user_insights")
+}

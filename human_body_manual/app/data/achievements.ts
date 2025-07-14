@@ -1,237 +1,284 @@
+import { Achievement, AchievementCategory, AchievementRarity } from '@/lib/types';
 
-export interface Achievement {
-  id: string;
-  title: string;
-  description: string;
-  icon: string;
-  category: 'consistency' | 'exploration' | 'mastery' | 'transformation';
-  rarity: 'bronze' | 'silver' | 'gold' | 'platinum';
-  criteria: {
-    type: 'streak' | 'exercises_completed' | 'areas_explored' | 'specific_exercise';
-    target: number;
-    timeframe?: string;
-    specificExercise?: string;
-  };
-  badge: string;
-}
-
-export const achievements: Achievement[] = [
-  // Konsistenz Achievements
+export const initialAchievements: Omit<Achievement, 'id' | 'createdAt'>[] = [
+  // Consistency Achievements
   {
-    id: 'first-step',
-    title: 'Erste Schritte',
-    description: 'Du hast deine erste Übung abgeschlossen - der Beginn einer transformierenden Reise!',
-    icon: 'Baby',
-    category: 'consistency',
-    rarity: 'bronze',
+    name: 'Erster Schritt',
+    description: 'Vervollständige deine erste Übung',
+    category: 'milestone' as AchievementCategory,
     criteria: {
-      type: 'exercises_completed',
-      target: 1
+      type: 'total_sessions',
+      target: 1,
+      timeframe: 'all_time'
     },
-    badge: '🌱'
+    badgeIcon: '🌱',
+    points: 10,
+    rarity: 'common' as AchievementRarity
   },
   {
-    id: 'week-warrior',
-    title: 'Wochen-Krieger',
-    description: '7 Tage in Folge praktiziert - du entwickelst eine kraftvolle Gewohnheit!',
-    icon: 'Calendar',
-    category: 'consistency',
-    rarity: 'silver',
+    name: 'Consistency Warrior',
+    description: 'Praktiziere 7 Tage in Folge',
+    category: 'consistency' as AchievementCategory,
     criteria: {
       type: 'streak',
-      target: 7
-    },
-    badge: '🔥'
-  },
-  {
-    id: 'month-master',
-    title: 'Monats-Meister',
-    description: '30 Tage kontinuierliche Praxis - deine Transformation ist unaufhaltsam!',
-    icon: 'Trophy',
-    category: 'consistency',
-    rarity: 'gold',
-    criteria: {
-      type: 'streak',
-      target: 30
-    },
-    badge: '🏆'
-  },
-  {
-    id: 'century-sage',
-    title: 'Jahrhundert-Weiser',
-    description: '100 Tage Streaks - Du bist ein wahrer Meister der Beständigkeit!',
-    icon: 'Crown',
-    category: 'consistency',
-    rarity: 'platinum',
-    criteria: {
-      type: 'streak',
-      target: 100
-    },
-    badge: '👑'
-  },
-
-  // Exploration Achievements
-  {
-    id: 'body-explorer',
-    title: 'Körper-Forscher',
-    description: 'Du hast alle 8 Hauptbereiche des Körpers erkundet - ein wahrer Entdecker!',
-    icon: 'Compass',
-    category: 'exploration',
-    rarity: 'gold',
-    criteria: {
-      type: 'areas_explored',
-      target: 8
-    },
-    badge: '🧭'
-  },
-  {
-    id: 'technique-collector',
-    title: 'Technik-Sammler',
-    description: '20 verschiedene Übungen gemeistert - dein Repertoire wächst stetig!',
-    icon: 'BookOpen',
-    category: 'exploration',
-    rarity: 'silver',
-    criteria: {
-      type: 'exercises_completed',
-      target: 20
-    },
-    badge: '📚'
-  },
-
-  // Mastery Achievements
-  {
-    id: 'breath-master',
-    title: 'Atem-Meister',
-    description: 'Du hast 5 verschiedene Atemtechniken gemeistert - du kontrollierst deinen Lebensatem!',
-    icon: 'Wind',
-    category: 'mastery',
-    rarity: 'gold',
-    criteria: {
-      type: 'exercises_completed',
-      target: 5,
-      specificExercise: 'nervensystem' // Nervensystem-Übungen
-    },
-    badge: '💨'
-  },
-  {
-    id: 'cold-warrior',
-    title: 'Kälte-Krieger',
-    description: 'Du hast dich der Kälte gestellt und deine Komfortzone gesprengt!',
-    icon: 'Snowflake',
-    category: 'mastery',
-    rarity: 'silver',
-    criteria: {
-      type: 'specific_exercise',
-      target: 5,
-      specificExercise: 'progressives-kaelte-protokoll'
-    },
-    badge: '❄️'
-  },
-  {
-    id: 'rhythm-keeper',
-    title: 'Rhythmus-Hüter',
-    description: 'Du hast deinen zirkadianen Rhythmus gemeistert - Zeit ist dein Verbündeter!',
-    icon: 'Clock',
-    category: 'mastery',
-    rarity: 'gold',
-    criteria: {
-      type: 'exercises_completed',
       target: 7,
-      specificExercise: 'zirkadian'
+      timeframe: 'daily'
     },
-    badge: '⏰'
+    badgeIcon: '🔥',
+    points: 50,
+    rarity: 'rare' as AchievementRarity
+  },
+  {
+    name: 'Unaufhaltsam',
+    description: 'Erreiche eine 30-Tage Streak',
+    category: 'consistency' as AchievementCategory,
+    criteria: {
+      type: 'streak',
+      target: 30,
+      timeframe: 'daily'
+    },
+    badgeIcon: '⚡',
+    points: 200,
+    rarity: 'epic' as AchievementRarity,
+    unlocksContent: ['advanced_techniques']
+  },
+  {
+    name: 'Legende der Beständigkeit',
+    description: 'Halte eine 100-Tage Streak aufrecht',
+    category: 'consistency' as AchievementCategory,
+    criteria: {
+      type: 'streak',
+      target: 100,
+      timeframe: 'daily'
+    },
+    badgeIcon: '👑',
+    points: 500,
+    rarity: 'legendary' as AchievementRarity,
+    unlocksContent: ['master_techniques', 'exclusive_content']
   },
 
-  // Transformation Achievements
+  // Milestone Achievements
   {
-    id: 'energy-awakening',
-    title: 'Energie-Erwachen',
-    description: 'Du spürst eine neue Energie in dir - deine Transformation hat begonnen!',
-    icon: 'Zap',
-    category: 'transformation',
-    rarity: 'silver',
+    name: 'Fleißiger Praktiker',
+    description: 'Vervollständige 30 Übungen insgesamt',
+    category: 'milestone' as AchievementCategory,
     criteria: {
-      type: 'exercises_completed',
-      target: 10
+      type: 'total_sessions',
+      target: 30,
+      timeframe: 'all_time'
     },
-    badge: '⚡'
+    badgeIcon: '📈',
+    points: 75,
+    rarity: 'common' as AchievementRarity
   },
   {
-    id: 'mind-body-unity',
-    title: 'Geist-Körper-Einheit',
-    description: 'Du hast Übungen aus allen Bereichen praktiziert - wahre ganzheitliche Integration!',
-    icon: 'Heart',
-    category: 'transformation',
-    rarity: 'platinum',
+    name: 'Hundertfacher Meister',
+    description: 'Erreiche 100 abgeschlossene Übungen',
+    category: 'milestone' as AchievementCategory,
     criteria: {
-      type: 'areas_explored',
-      target: 8
+      type: 'total_sessions',
+      target: 100,
+      timeframe: 'all_time'
     },
-    badge: '💎'
+    badgeIcon: '💯',
+    points: 150,
+    rarity: 'rare' as AchievementRarity
   },
   {
-    id: 'resilience-builder',
-    title: 'Resilienz-Architekt',
-    description: 'Du baust systematisch deine Widerstandskraft auf - unerschütterlich wie ein Fels!',
-    icon: 'Shield',
-    category: 'transformation',
-    rarity: 'gold',
+    name: 'Wellness Virtuose',
+    description: 'Sammle 500 abgeschlossene Übungen',
+    category: 'milestone' as AchievementCategory,
     criteria: {
-      type: 'exercises_completed',
-      target: 50
+      type: 'total_sessions',
+      target: 500,
+      timeframe: 'all_time'
     },
-    badge: '🛡️'
+    badgeIcon: '🎯',
+    points: 400,
+    rarity: 'epic' as AchievementRarity
+  },
+
+  // Body Area Mastery Achievements
+  {
+    name: 'Nervensystem Novize',
+    description: 'Vervollständige 10 Nervensystem-Übungen',
+    category: 'mastery' as AchievementCategory,
+    criteria: {
+      type: 'body_area_mastery',
+      target: 10,
+      bodyArea: 'nervensystem',
+      timeframe: 'all_time'
+    },
+    badgeIcon: '🧠',
+    points: 30,
+    rarity: 'common' as AchievementRarity
+  },
+  {
+    name: 'Hormon Harmonisierer',
+    description: 'Meistere 15 Hormon-Balance Übungen',
+    category: 'mastery' as AchievementCategory,
+    criteria: {
+      type: 'body_area_mastery',
+      target: 15,
+      bodyArea: 'hormone',
+      timeframe: 'all_time'
+    },
+    badgeIcon: '⚖️',
+    points: 40,
+    rarity: 'common' as AchievementRarity
+  },
+  {
+    name: 'Zirkadianer Zeitmeister',
+    description: 'Optimiere deinen Rhythmus mit 20 Übungen',
+    category: 'mastery' as AchievementCategory,
+    criteria: {
+      type: 'body_area_mastery',
+      target: 20,
+      bodyArea: 'zirkadian',
+      timeframe: 'all_time'
+    },
+    badgeIcon: '🌅',
+    points: 50,
+    rarity: 'rare' as AchievementRarity
+  },
+  {
+    name: 'Mikrobiom Meister',
+    description: 'Kultiviere dein inneres Ökosystem mit 25 Übungen',
+    category: 'mastery' as AchievementCategory,
+    criteria: {
+      type: 'body_area_mastery',
+      target: 25,
+      bodyArea: 'mikrobiom',
+      timeframe: 'all_time'
+    },
+    badgeIcon: '🦠',
+    points: 60,
+    rarity: 'rare' as AchievementRarity
+  },
+  {
+    name: 'Bewegungs Virtuose',
+    description: 'Befreie deinen Körper mit 30 Bewegungsübungen',
+    category: 'mastery' as AchievementCategory,
+    criteria: {
+      type: 'body_area_mastery',
+      target: 30,
+      bodyArea: 'bewegung',
+      timeframe: 'all_time'
+    },
+    badgeIcon: '🤸',
+    points: 70,
+    rarity: 'rare' as AchievementRarity
+  },
+  {
+    name: 'Fasten Philosoph',
+    description: 'Aktiviere Autophagie mit 20 Fasten-Übungen',
+    category: 'mastery' as AchievementCategory,
+    criteria: {
+      type: 'body_area_mastery',
+      target: 20,
+      bodyArea: 'fasten',
+      timeframe: 'all_time'
+    },
+    badgeIcon: '🕐',
+    points: 55,
+    rarity: 'rare' as AchievementRarity
+  },
+  {
+    name: 'Kälte Krieger',
+    description: 'Stärke deine Resilienz mit 25 Kälte-Übungen',
+    category: 'mastery' as AchievementCategory,
+    criteria: {
+      type: 'body_area_mastery',
+      target: 25,
+      bodyArea: 'kaelte',
+      timeframe: 'all_time'
+    },
+    badgeIcon: '❄️',
+    points: 65,
+    rarity: 'rare' as AchievementRarity
+  },
+  {
+    name: 'Licht Luminär',
+    description: 'Nutze heilende Frequenzen mit 15 Licht-Übungen',
+    category: 'mastery' as AchievementCategory,
+    criteria: {
+      type: 'body_area_mastery',
+      target: 15,
+      bodyArea: 'licht',
+      timeframe: 'all_time'
+    },
+    badgeIcon: '💡',
+    points: 45,
+    rarity: 'rare' as AchievementRarity
+  },
+
+  // Special Weekly Achievements
+  {
+    name: 'Perfekte Woche',
+    description: 'Vervollständige alle geplanten Übungen einer Woche',
+    category: 'special' as AchievementCategory,
+    criteria: {
+      type: 'consistency',
+      target: 7,
+      timeframe: 'weekly',
+      conditions: { perfectWeek: true }
+    },
+    badgeIcon: '🌟',
+    points: 100,
+    rarity: 'epic' as AchievementRarity
+  },
+  {
+    name: 'Ganzheitlicher Praktiker',
+    description: 'Praktiziere in allen 8 Körperbereichen innerhalb einer Woche',
+    category: 'special' as AchievementCategory,
+    criteria: {
+      type: 'consistency',
+      target: 8,
+      timeframe: 'weekly',
+      conditions: { allBodyAreas: true }
+    },
+    badgeIcon: '🎭',
+    points: 120,
+    rarity: 'epic' as AchievementRarity
+  },
+
+  // Community Achievements
+  {
+    name: 'Community Mitglied',
+    description: 'Tritt der Human Body Manual Community bei',
+    category: 'community' as AchievementCategory,
+    criteria: {
+      type: 'milestone',
+      target: 1,
+      conditions: { joinedCommunity: true }
+    },
+    badgeIcon: '🤝',
+    points: 25,
+    rarity: 'common' as AchievementRarity
+  },
+  {
+    name: 'Inspirierender Praktiker',
+    description: 'Teile deinen ersten Fortschritt mit der Community',
+    category: 'community' as AchievementCategory,
+    criteria: {
+      type: 'milestone',
+      target: 1,
+      conditions: { sharedProgress: true }
+    },
+    badgeIcon: '📢',
+    points: 35,
+    rarity: 'common' as AchievementRarity
   }
 ];
 
-export const getAchievementsByCategory = (category: Achievement['category']): Achievement[] => {
-  return achievements.filter(achievement => achievement.category === category);
+export const getAchievementsByCategory = (category: AchievementCategory) => {
+  return initialAchievements.filter(achievement => achievement.category === category);
 };
 
-export const getAchievementsByRarity = (rarity: Achievement['rarity']): Achievement[] => {
-  return achievements.filter(achievement => achievement.rarity === rarity);
+export const getAchievementsByRarity = (rarity: AchievementRarity) => {
+  return initialAchievements.filter(achievement => achievement.rarity === rarity);
 };
 
-export const checkAchievements = (userStats: {
-  streak: number;
-  completedExercises: string[];
-  exploredAreas: string[];
-}): Achievement[] => {
-  const earned: Achievement[] = [];
-
-  achievements.forEach(achievement => {
-    let isEarned = false;
-
-    switch (achievement.criteria.type) {
-      case 'streak':
-        isEarned = userStats.streak >= achievement.criteria.target;
-        break;
-      case 'exercises_completed':
-        if (achievement.criteria.specificExercise) {
-          // Count exercises from specific category
-          const categoryExercises = userStats.completedExercises.filter(ex => 
-            ex.includes(achievement.criteria.specificExercise!)
-          );
-          isEarned = categoryExercises.length >= achievement.criteria.target;
-        } else {
-          isEarned = userStats.completedExercises.length >= achievement.criteria.target;
-        }
-        break;
-      case 'areas_explored':
-        isEarned = userStats.exploredAreas.length >= achievement.criteria.target;
-        break;
-      case 'specific_exercise':
-        const exerciseCount = userStats.completedExercises.filter(ex => 
-          ex === achievement.criteria.specificExercise
-        ).length;
-        isEarned = exerciseCount >= achievement.criteria.target;
-        break;
-    }
-
-    if (isEarned) {
-      earned.push(achievement);
-    }
-  });
-
-  return earned;
+export const getUnlockableAchievements = () => {
+  return initialAchievements.filter(achievement => achievement.unlocksContent && achievement.unlocksContent.length > 0);
 };

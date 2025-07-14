@@ -1,134 +1,389 @@
+import { PrismaClient } from '@prisma/client';
+import { 
+  ProgressEntry, 
+  ExerciseCompletion, 
+  UserProgress, 
+  StreakData, 
+  BodyAreaStats,
+  BodyAreaType,
+  DifficultyLevel,
+  DateRange
+} from './types';
 
-'use client';
+const prisma = new PrismaClient();
 
-export interface UserProgress {
-  streak: number;
-  lastActivity: string;
-  completedExercises: string[];
-  exploredAreas: string[];
-  achievements: string[];
-  totalSessions: number;
-  favoriteExercises: string[];
-}
+export class ProgressTracker {
+  /**
+   * Record a completed exercise session
+   */
+  static async recordCompletion(
+    userId: string, 
+    exerciseData: ExerciseCompletion
+  ): Promise<ProgressEntry> {
+    const progressEntry = await prisma.userProgress.create({
+      data: {
+        userId,
+        exerciseId: exerciseData.exerciseId,
+        bodyArea: exerciseData.bodyArea,
+        completedAt: new Date(),
+        durationMinutes: exerciseData.durationMinutes,
+        difficultyLevel: exerciseData.difficultyLevel,
+        sessionNotes: exerciseData.sessionNotes,
+        biometricData: exerciseData.biometricData ? JSON.stringify(exerciseData.biometricData) : null,
+        mood: exerciseData.mood,
+        energyLevel: exerciseData.energyLevel,
+      },
+    });
 
-const STORAGE_KEY = 'human_body_manual_progress';
+    // Update streaks after recording completion
+    await this.updateStreaks(userId);
 
-export const getProgressData = (): UserProgress => {
-  if (typeof window === 'undefined') {
-    return getDefaultProgress();
+    return {
+      id: progressEntry.id,
+      userId: progressEntry.userId,
+      exerciseId: progressEntry.exerciseId,
+      bodyArea: progressEntry.bodyArea as BodyAreaType,
+      completedAt: progressEntry.completedAt,
+      durationMinutes: progressEntry.durationMinutes || undefined,
+      difficultyLevel: progressEntry.difficultyLevel as DifficultyLevel,
+      sessionNotes: progressEntry.sessionNotes || undefined,
+      biometricData: progressEntry.biometricData ? JSON.parse(progressEntry.biometricData as string) : undefined,
+      mood: progressEntry.mood as any,
+      energyLevel: progressEntry.energyLevel as any,
+      createdAt: progressEntry.createdAt,
+    };
   }
 
-  try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const data = JSON.parse(stored);
-      return {
-        ...getDefaultProgress(),
-        ...data
-      };
+  /**
+   * Get comprehensive user progress data
+   */
+  static async getUserProgress(
+    userId: string, 
+    timeRange?: DateRange
+  ): Promise<UserProgress> {
+    const whereClause: any = { userId };
+    
+    if (timeRange?.from || timeRange?.to) {
+      whereClause.completedAt = {};
+      if (timeRange.from) whereClause.completedAt.gte = timeRange.from;
+      if (timeRange.to) whereClause.completedAt.lte = timeRange.to;
     }
-  } catch (error) {
-    console.error('Error loading progress data:', error);
+
+    // Get total sessions and minutes
+    const totalStats = await prisma.userProgress.aggregate({
+      where: whereClause,
+      _count: { id: true },
+      _sum: { durationMinutes: true },
+    });
+
+    // Get current and longest streaks
+    const streakData = await this.getStreakData(userId);
+    const dailyStreak = streakData.find(s => s.streakType === 'daily');
+
+    // Get body area statistics
+    const bodyAreaStats = await this.getBodyAreaStats(userId);
+
+    // Get recent achievements (last 30 days)
+    const recentAchievements = await prisma.userAchievement.findMany({
+      where: {
+        userId,
+        earnedAt: {
+          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
+        },
+      },
+      include: {
+        achievement: true,
+      },
+      orderBy: { earnedAt: 'desc' },
+      take: 10,
+    });
+
+    // Get last activity
+    const lastActivity = await prisma.userProgress.findFirst({
+      where: { userId },
+      orderBy: { completedAt: 'desc' },
+      select: { completedAt: true },
+    });
+
+    // Calculate weekly progress (assuming goal of 7 sessions per week)
+    const weekStart = new Date();
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+
+    const weeklyProgress = await prisma.userProgress.count({
+      where: {
+        userId,
+        completedAt: { gte: weekStart },
+      },
+    });
+
+    return {
+      userId,
+      totalSessions: totalStats._count.id || 0,
+      totalMinutes: totalStats._sum.durationMinutes || 0,
+      currentStreak: dailyStreak?.currentCount || 0,
+      longestStreak: dailyStreak?.bestCount || 0,
+      bodyAreaStats,
+      recentAchievements: recentAchievements.map(ua => ({
+        id: ua.id,
+        userId: ua.userId,
+        achievementId: ua.achievementId,
+        achievement: {
+          id: ua.achievement.id,
+          name: ua.achievement.name,
+          description: ua.achievement.description,
+          category: ua.achievement.category as any,
+          criteria: ua.achievement.criteria as any,
+          badgeIcon: ua.achievement.badgeIcon || '',
+          points: ua.achievement.points,
+          rarity: ua.achievement.rarity as any,
+          createdAt: ua.achievement.createdAt,
+        },
+        earnedAt: ua.earnedAt,
+        progressSnapshot: ua.progressSnapshot as any,
+      })),
+      weeklyGoal: 7, // Default weekly goal
+      weeklyProgress,
+      lastActivity: lastActivity?.completedAt || new Date(),
+    };
   }
 
-  return getDefaultProgress();
-};
+  /**
+   * Get streak data for a user
+   */
+  static async getStreakData(userId: string): Promise<StreakData[]> {
+    const streaks = await prisma.userStreak.findMany({
+      where: { userId },
+    });
 
-export const saveProgressData = (progress: UserProgress): void => {
-  if (typeof window === 'undefined') return;
-
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(progress));
-  } catch (error) {
-    console.error('Error saving progress data:', error);
-  }
-};
-
-export const getDefaultProgress = (): UserProgress => ({
-  streak: 0,
-  lastActivity: '',
-  completedExercises: [],
-  exploredAreas: [],
-  achievements: [],
-  totalSessions: 0,
-  favoriteExercises: []
-});
-
-export const markExerciseCompleted = (exerciseSlug: string, category: string): UserProgress => {
-  const progress = getProgressData();
-  const today = new Date().toDateString();
-
-  // Add exercise to completed if not already there
-  if (!progress.completedExercises.includes(exerciseSlug)) {
-    progress.completedExercises.push(exerciseSlug);
+    return streaks.map(streak => ({
+      userId: streak.userId,
+      streakType: streak.streakType as any,
+      currentCount: streak.currentCount,
+      bestCount: streak.bestCount,
+      lastActivityDate: streak.lastActivityDate || undefined,
+      startedAt: streak.startedAt,
+      isActive: this.isStreakActive(streak.lastActivityDate, streak.streakType as any),
+    }));
   }
 
-  // Add area to explored if not already there
-  if (!progress.exploredAreas.includes(category)) {
-    progress.exploredAreas.push(category);
+  /**
+   * Get body area specific statistics
+   */
+  static async getBodyAreaStats(userId: string): Promise<BodyAreaStats[]> {
+    const bodyAreas: BodyAreaType[] = [
+      'nervensystem', 'hormone', 'zirkadian', 'mikrobiom', 
+      'bewegung', 'fasten', 'kaelte', 'licht'
+    ];
+
+    const stats: BodyAreaStats[] = [];
+
+    for (const bodyArea of bodyAreas) {
+      const areaProgress = await prisma.userProgress.findMany({
+        where: { userId, bodyArea },
+        orderBy: { completedAt: 'desc' },
+      });
+
+      if (areaProgress.length === 0) {
+        stats.push({
+          bodyArea,
+          totalSessions: 0,
+          totalMinutes: 0,
+          averageSessionDuration: 0,
+          completionRate: 0,
+          lastPracticed: new Date(0),
+          favoriteExercises: [],
+          consistencyScore: 0,
+          masteryLevel: 'beginner',
+        });
+        continue;
+      }
+
+      const totalSessions = areaProgress.length;
+      const totalMinutes = areaProgress.reduce((sum, p) => sum + (p.durationMinutes || 0), 0);
+      const averageSessionDuration = totalMinutes / totalSessions;
+
+      // Calculate favorite exercises (most practiced)
+      const exerciseCounts = areaProgress.reduce((acc, p) => {
+        acc[p.exerciseId] = (acc[p.exerciseId] || 0) + 1;
+        return acc;
+      }, {} as Record<string, number>);
+
+      const favoriteExercises = Object.entries(exerciseCounts)
+        .sort(([,a], [,b]) => b - a)
+        .slice(0, 3)
+        .map(([exerciseId]) => exerciseId);
+
+      // Calculate consistency score (sessions in last 30 days / 30)
+      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+      const recentSessions = areaProgress.filter(p => p.completedAt >= thirtyDaysAgo).length;
+      const consistencyScore = Math.min(recentSessions / 30, 1);
+
+      // Determine mastery level based on total sessions
+      let masteryLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert' = 'beginner';
+      if (totalSessions >= 50) masteryLevel = 'expert';
+      else if (totalSessions >= 25) masteryLevel = 'advanced';
+      else if (totalSessions >= 10) masteryLevel = 'intermediate';
+
+      stats.push({
+        bodyArea,
+        totalSessions,
+        totalMinutes,
+        averageSessionDuration,
+        completionRate: 1, // For now, assume 100% completion rate
+        lastPracticed: areaProgress[0].completedAt,
+        favoriteExercises,
+        consistencyScore,
+        masteryLevel,
+      });
+    }
+
+    return stats;
   }
 
-  // Update streak
-  if (progress.lastActivity === today) {
-    // Already did something today, don't change streak
-  } else if (progress.lastActivity === new Date(Date.now() - 24 * 60 * 60 * 1000).toDateString()) {
-    // Yesterday was last activity, increment streak
-    progress.streak += 1;
-  } else {
-    // Reset streak to 1 for new start
-    progress.streak = 1;
+  /**
+   * Update user streaks after completing an exercise
+   */
+  private static async updateStreaks(userId: string): Promise<void> {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Update daily streak
+    await this.updateDailyStreak(userId, today);
   }
 
-  progress.lastActivity = today;
-  progress.totalSessions += 1;
+  /**
+   * Update daily streak for a user
+   */
+  private static async updateDailyStreak(userId: string, today: Date): Promise<void> {
+    const existingStreak = await prisma.userStreak.findUnique({
+      where: {
+        userId_streakType: {
+          userId,
+          streakType: 'daily',
+        },
+      },
+    });
 
-  saveProgressData(progress);
-  return progress;
-};
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
 
-export const addToFavorites = (exerciseSlug: string): UserProgress => {
-  const progress = getProgressData();
-  
-  if (!progress.favoriteExercises.includes(exerciseSlug)) {
-    progress.favoriteExercises.push(exerciseSlug);
-    saveProgressData(progress);
+    if (!existingStreak) {
+      // Create new streak
+      await prisma.userStreak.create({
+        data: {
+          userId,
+          streakType: 'daily',
+          currentCount: 1,
+          bestCount: 1,
+          lastActivityDate: today,
+        },
+      });
+      return;
+    }
+
+    const lastActivity = existingStreak.lastActivityDate;
+    
+    if (!lastActivity) {
+      // Reset streak
+      await prisma.userStreak.update({
+        where: { id: existingStreak.id },
+        data: {
+          currentCount: 1,
+          bestCount: Math.max(existingStreak.bestCount, 1),
+          lastActivityDate: today,
+        },
+      });
+      return;
+    }
+
+    const lastActivityDate = new Date(lastActivity);
+    lastActivityDate.setHours(0, 0, 0, 0);
+
+    if (lastActivityDate.getTime() === today.getTime()) {
+      // Already practiced today, no change needed
+      return;
+    }
+
+    if (lastActivityDate.getTime() === yesterday.getTime()) {
+      // Continuing streak
+      const newCount = existingStreak.currentCount + 1;
+      await prisma.userStreak.update({
+        where: { id: existingStreak.id },
+        data: {
+          currentCount: newCount,
+          bestCount: Math.max(existingStreak.bestCount, newCount),
+          lastActivityDate: today,
+        },
+      });
+    } else {
+      // Streak broken, reset
+      await prisma.userStreak.update({
+        where: { id: existingStreak.id },
+        data: {
+          currentCount: 1,
+          lastActivityDate: today,
+        },
+      });
+    }
   }
-  
-  return progress;
-};
 
-export const removeFromFavorites = (exerciseSlug: string): UserProgress => {
-  const progress = getProgressData();
-  
-  progress.favoriteExercises = progress.favoriteExercises.filter(slug => slug !== exerciseSlug);
-  saveProgressData(progress);
-  
-  return progress;
-};
+  /**
+   * Check if a streak is currently active
+   */
+  private static isStreakActive(lastActivityDate: Date | null, streakType: string): boolean {
+    if (!lastActivityDate) return false;
 
-export const earnAchievement = (achievementId: string): UserProgress => {
-  const progress = getProgressData();
-  
-  if (!progress.achievements.includes(achievementId)) {
-    progress.achievements.push(achievementId);
-    saveProgressData(progress);
+    const now = new Date();
+    const lastActivity = new Date(lastActivityDate);
+
+    switch (streakType) {
+      case 'daily':
+        const daysDiff = Math.floor((now.getTime() - lastActivity.getTime()) / (1000 * 60 * 60 * 24));
+        return daysDiff <= 1; // Active if practiced today or yesterday
+      default:
+        return false;
+    }
   }
-  
-  return progress;
-};
 
-export const getStreakColor = (streak: number): string => {
-  if (streak >= 100) return 'text-purple-600';
-  if (streak >= 30) return 'text-gold-600';
-  if (streak >= 7) return 'text-orange-600';
-  if (streak >= 3) return 'text-green-600';
-  return 'text-gray-600';
-};
+  /**
+   * Get progress entries for a specific date range
+   */
+  static async getProgressEntries(
+    userId: string,
+    timeRange?: DateRange,
+    bodyArea?: BodyAreaType
+  ): Promise<ProgressEntry[]> {
+    const whereClause: any = { userId };
+    
+    if (timeRange?.from || timeRange?.to) {
+      whereClause.completedAt = {};
+      if (timeRange.from) whereClause.completedAt.gte = timeRange.from;
+      if (timeRange.to) whereClause.completedAt.lte = timeRange.to;
+    }
 
-export const getStreakEmoji = (streak: number): string => {
-  if (streak >= 100) return '👑';
-  if (streak >= 30) return '🏆';
-  if (streak >= 7) return '🔥';
-  if (streak >= 3) return '⭐';
-  return '🌱';
-};
+    if (bodyArea) {
+      whereClause.bodyArea = bodyArea;
+    }
+
+    const entries = await prisma.userProgress.findMany({
+      where: whereClause,
+      orderBy: { completedAt: 'desc' },
+    });
+
+    return entries.map(entry => ({
+      id: entry.id,
+      userId: entry.userId,
+      exerciseId: entry.exerciseId,
+      bodyArea: entry.bodyArea as BodyAreaType,
+      completedAt: entry.completedAt,
+      durationMinutes: entry.durationMinutes || undefined,
+      difficultyLevel: entry.difficultyLevel as DifficultyLevel,
+      sessionNotes: entry.sessionNotes || undefined,
+      biometricData: entry.biometricData ? JSON.parse(entry.biometricData as string) : undefined,
+      mood: entry.mood as any,
+      energyLevel: entry.energyLevel as any,
+      createdAt: entry.createdAt,
+    }));
+  }
+}
