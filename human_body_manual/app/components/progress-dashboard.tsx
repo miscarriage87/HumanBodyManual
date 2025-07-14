@@ -4,11 +4,32 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import * as Icons from 'lucide-react';
-import { getProgressData, getStreakColor, getStreakEmoji } from '@/lib/progress-tracker';
+import { ProgressTracker } from '@/lib/progress-tracker';
 import { bodyAreas } from '@/data/body-areas';
 import { exercises } from '@/data/exercises';
-import { achievements, checkAchievements } from '@/data/achievements';
+import { initialAchievements } from '@/data/achievements';
 import AchievementBadge from './achievement-badge';
+import CalendarHeatmapComponent from './progress/calendar-heatmap';
+import StreakCounter from './progress/streak-counter';
+import BodyAreaProgressCards from './progress/body-area-progress-cards';
+import RecentActivityFeed from './progress/recent-activity-feed';
+import { BodyAreaStats, ProgressEntry } from '@/lib/types';
+
+// Mock functions for demo purposes
+const getProgressData = () => ({
+  streak: 5,
+  completedExercises: ['breathing-basics', 'cold-shower', 'morning-light'],
+  exploredAreas: ['nervensystem', 'kaelte', 'licht']
+});
+
+const checkAchievements = (data: any) => {
+  // Mock achievement checking - return some sample achievements
+  return initialAchievements.slice(0, 3).map((achievement, index) => ({
+    ...achievement,
+    id: `achievement-${index}`,
+    createdAt: new Date()
+  }));
+};
 
 export default function ProgressDashboard() {
   const [progress, setProgress] = useState(getProgressData());
@@ -52,81 +73,119 @@ export default function ProgressDashboard() {
   const completedExercises = progress.completedExercises.length;
   const overallProgress = (completedExercises / totalExercises) * 100;
 
+  // Generate mock data for the new components
+  const generateHeatmapData = () => {
+    const data = [];
+    const endDate = new Date();
+    const startDate = new Date();
+    startDate.setDate(endDate.getDate() - 90);
+    
+    for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+      data.push({
+        date: d.toISOString().split('T')[0],
+        count: Math.random() > 0.7 ? Math.floor(Math.random() * 5) : 0
+      });
+    }
+    return data;
+  };
+
+  const generateBodyAreaStats = (): BodyAreaStats[] => {
+    return bodyAreas.map(area => ({
+      bodyArea: area.id as any,
+      totalSessions: Math.floor(Math.random() * 50) + 10,
+      totalMinutes: Math.floor(Math.random() * 1000) + 200,
+      averageSessionDuration: Math.floor(Math.random() * 30) + 15,
+      completionRate: Math.floor(Math.random() * 100),
+      lastPracticed: new Date(Date.now() - Math.random() * 7 * 24 * 60 * 60 * 1000),
+      favoriteExercises: exercises
+        .filter(ex => ex.category === area.id)
+        .slice(0, 3)
+        .map(ex => ex.title),
+      consistencyScore: Math.floor(Math.random() * 100),
+      masteryLevel: ['beginner', 'intermediate', 'advanced', 'expert'][Math.floor(Math.random() * 4)] as any
+    }));
+  };
+
+  const generateRecentActivities = (): ProgressEntry[] => {
+    return progress.completedExercises.slice(-10).map((exerciseSlug, index) => {
+      const exercise = exercises.find(ex => ex.slug === exerciseSlug);
+      const bodyArea = bodyAreas.find(area => area.id === exercise?.category);
+      
+      return {
+        id: `activity-${index}`,
+        userId: 'user-1',
+        exerciseId: exercise?.title || exerciseSlug,
+        bodyArea: (bodyArea?.id || 'bewegung') as any,
+        completedAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000),
+        durationMinutes: Math.floor(Math.random() * 45) + 15,
+        difficultyLevel: exercise?.difficulty || 'Anfänger' as any,
+        sessionNotes: Math.random() > 0.7 ? 'Großartige Session heute!' : undefined,
+        mood: ['sehr_gut', 'gut', 'neutral'][Math.floor(Math.random() * 3)] as any,
+        energyLevel: ['hoch', 'normal', 'sehr_hoch'][Math.floor(Math.random() * 3)] as any,
+        createdAt: new Date(Date.now() - index * 24 * 60 * 60 * 1000)
+      };
+    });
+  };
+
+  const heatmapData = generateHeatmapData();
+  const bodyAreaStats = generateBodyAreaStats();
+  const recentActivities = generateRecentActivities();
+
   return (
     <div className="space-y-8">
-      {/* Hauptstatistiken */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Streak */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="organic-card p-6 text-center"
-        >
-          <div className={`text-4xl font-playfair font-bold ${getStreakColor(progress.streak)} mb-2`}>
-            {progress.streak}
-          </div>
-          <div className="text-charcoal-600 text-sm font-medium mb-2">
-            Tage Streak {getStreakEmoji(progress.streak)}
-          </div>
-          <div className="text-xs text-charcoal-500">
-            Kontinuität ist der Schlüssel
-          </div>
-        </motion.div>
+      {/* Enhanced Streak Counter with Flame Animation */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <StreakCounter
+          currentStreak={progress.streak}
+          longestStreak={Math.max(progress.streak, 15)} // Mock longest streak
+          lastActivityDate={new Date()}
+          className="lg:col-span-1"
+        />
+        
+        {/* Quick Stats */}
+        <div className="lg:col-span-2 grid grid-cols-2 gap-4">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="organic-card p-6 text-center"
+          >
+            <div className="text-3xl font-playfair font-bold text-forest-600 mb-2">
+              {completedExercises}
+            </div>
+            <div className="text-charcoal-600 text-sm font-medium mb-1">
+              Übungen gemeistert ✨
+            </div>
+            <div className="text-xs text-charcoal-500">
+              von {totalExercises} verfügbaren
+            </div>
+          </motion.div>
 
-        {/* Abgeschlossene Übungen */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="organic-card p-6 text-center"
-        >
-          <div className="text-4xl font-playfair font-bold text-forest-600 mb-2">
-            {completedExercises}
-          </div>
-          <div className="text-charcoal-600 text-sm font-medium mb-2">
-            Übungen gemeistert ✨
-          </div>
-          <div className="text-xs text-charcoal-500">
-            von {totalExercises} verfügbaren
-          </div>
-        </motion.div>
-
-        {/* Erkundete Bereiche */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="organic-card p-6 text-center"
-        >
-          <div className="text-4xl font-playfair font-bold text-ocher-600 mb-2">
-            {progress.exploredAreas.length}
-          </div>
-          <div className="text-charcoal-600 text-sm font-medium mb-2">
-            Bereiche erkundet 🗺️
-          </div>
-          <div className="text-xs text-charcoal-500">
-            von {bodyAreas.length} Körperbereichen
-          </div>
-        </motion.div>
-
-        {/* Errungenschaften */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="organic-card p-6 text-center"
-        >
-          <div className="text-4xl font-playfair font-bold text-gold-600 mb-2">
-            {earnedAchievements.length}
-          </div>
-          <div className="text-charcoal-600 text-sm font-medium mb-2">
-            Errungenschaften 🏆
-          </div>
-          <div className="text-xs text-charcoal-500">
-            von {achievements.length} möglichen
-          </div>
-        </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="organic-card p-6 text-center"
+          >
+            <div className="text-3xl font-playfair font-bold text-gold-600 mb-2">
+              {earnedAchievements.length}
+            </div>
+            <div className="text-charcoal-600 text-sm font-medium mb-1">
+              Errungenschaften 🏆
+            </div>
+            <div className="text-xs text-charcoal-500">
+              von {initialAchievements.length} möglichen
+            </div>
+          </motion.div>
+        </div>
       </div>
+
+      {/* Calendar Heatmap */}
+      <CalendarHeatmapComponent
+        values={heatmapData}
+        startDate={new Date(Date.now() - 90 * 24 * 60 * 60 * 1000)}
+        endDate={new Date()}
+      />
 
       {/* Gesamtfortschritt */}
       <motion.div
@@ -160,62 +219,21 @@ export default function ProgressDashboard() {
         </div>
       </motion.div>
 
-      {/* Fortschritt nach Bereichen */}
+      {/* Enhanced Body Area Progress Cards with Circular Progress */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.5 }}
-        className="organic-card p-6"
       >
-        <h3 className="font-playfair font-semibold text-xl text-charcoal-900 mb-6">
-          📊 Fortschritt nach Körperbereichen
-        </h3>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {completionByArea.map((area, index) => {
-            const IconComponent = Icons[area.icon as keyof typeof Icons] as any;
-            
-            return (
-              <motion.div
-                key={area.id}
-                initial={{ opacity: 0, x: -20 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.6 + index * 0.1 }}
-                className="bg-white/50 rounded-xl p-4 border border-white/20"
-              >
-                <div className="flex items-center gap-3 mb-3">
-                  {IconComponent && (
-                    <div 
-                      className="flex items-center justify-center w-10 h-10 rounded-lg shadow-sm"
-                      style={{ backgroundColor: area.color + '20', color: area.color }}
-                    >
-                      <IconComponent size={20} />
-                    </div>
-                  )}
-                  <div>
-                    <h4 className="font-semibold text-charcoal-900 text-sm">
-                      {area.title}
-                    </h4>
-                    <div className="text-xs text-charcoal-600">
-                      {area.completed} / {area.total} abgeschlossen
-                    </div>
-                  </div>
-                </div>
-                <div className="progress-bar h-2">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: area.color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: `${area.percentage}%` }}
-                    transition={{ duration: 0.8, delay: 0.7 + index * 0.1 }}
-                  />
-                </div>
-                <div className="text-right text-xs text-charcoal-500 mt-1">
-                  {Math.round(area.percentage)}%
-                </div>
-              </motion.div>
-            );
-          })}
+        <div className="mb-6">
+          <h3 className="font-playfair font-semibold text-xl text-charcoal-900 mb-2">
+            📊 Fortschritt nach Körperbereichen
+          </h3>
+          <p className="text-sm text-charcoal-600">
+            Detaillierte Einblicke in deine Praxis in jedem Bereich
+          </p>
         </div>
+        <BodyAreaProgressCards bodyAreaStats={bodyAreaStats} />
       </motion.div>
 
       {/* Errungenschaften */}
@@ -280,46 +298,11 @@ export default function ProgressDashboard() {
         )}
       </motion.div>
 
-      {/* Letzte Aktivitäten */}
-      {progress.completedExercises.length > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7 }}
-          className="organic-card p-6"
-        >
-          <h3 className="font-playfair font-semibold text-xl text-charcoal-900 mb-4">
-            📚 Kürzlich abgeschlossen
-          </h3>
-          <div className="space-y-2">
-            {progress.completedExercises.slice(-5).reverse().map((exerciseSlug, index) => {
-              const exercise = exercises.find(ex => ex.slug === exerciseSlug);
-              if (!exercise) return null;
-              
-              const IconComponent = Icons[exercise.icon as keyof typeof Icons] as any;
-              
-              return (
-                <div key={exerciseSlug} className="flex items-center gap-3 p-3 bg-white/50 rounded-lg">
-                  {IconComponent && (
-                    <div className="flex items-center justify-center w-8 h-8 bg-forest-100 text-forest-600 rounded-lg">
-                      <IconComponent size={16} />
-                    </div>
-                  )}
-                  <div className="flex-grow">
-                    <div className="font-medium text-charcoal-900 text-sm">
-                      {exercise.title}
-                    </div>
-                    <div className="text-xs text-charcoal-600">
-                      {exercise.difficulty} • {exercise.duration}
-                    </div>
-                  </div>
-                  <Icons.CheckCircle size={20} className="text-forest-500" />
-                </div>
-              );
-            })}
-          </div>
-        </motion.div>
-      )}
+      {/* Enhanced Recent Activity Feed */}
+      <RecentActivityFeed 
+        activities={recentActivities}
+        maxItems={8}
+      />
     </div>
   );
 }
