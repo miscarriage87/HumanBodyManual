@@ -92,7 +92,7 @@ export class AnalyticsService {
 
     while (currentDate <= endDate) {
       const dateStr = currentDate.toISOString().split('T')[0];
-      const dayProgress = dailyProgress.find(p => 
+      const dayProgress = dailyProgress.find((p: any) => 
         p.completedAt.toISOString().split('T')[0] === dateStr
       );
 
@@ -150,7 +150,7 @@ export class AnalyticsService {
     });
 
     // Analyze body area distribution
-    const bodyAreaCounts = recentProgress.reduce((acc, p) => {
+    const bodyAreaCounts = recentProgress.reduce((acc: Record<string, number>, p: any) => {
       acc[p.bodyArea] = (acc[p.bodyArea] || 0) + 1;
       return acc;
     }, {} as Record<string, number>);
@@ -178,9 +178,9 @@ export class AnalyticsService {
 
     // Recommend progression for frequently practiced areas
     const mostPracticedArea = Object.entries(bodyAreaCounts)
-      .sort(([,a], [,b]) => b - a)[0];
+      .sort(([,a], [,b]) => (b as number) - (a as number))[0];
 
-    if (mostPracticedArea && mostPracticedArea[1] >= 5) {
+    if (mostPracticedArea && (mostPracticedArea[1] as number) >= 5) {
       recommendations.push({
         id: `progression_${mostPracticedArea[0]}`,
         type: 'progression',
@@ -228,7 +228,7 @@ export class AnalyticsService {
     }, {} as Record<number, number>);
 
     const mostActiveDay = Object.entries(weekdayCounts)
-      .sort(([,a], [,b]) => b - a)[0];
+      .sort(([,a], [,b]) => (b as number) - (a as number))[0];
 
     const dayNames = ['Sonntag', 'Montag', 'Dienstag', 'Mittwoch', 'Donnerstag', 'Freitag', 'Samstag'];
 
@@ -352,7 +352,7 @@ export class AnalyticsService {
     }, {} as Record<string, { totalDuration: number; sessions: number }>);
 
     const avgDurations = Object.entries(bodyAreaEffectiveness)
-      .map(([area, data]) => ({
+      .map(([area, data]: [string, any]) => ({
         area,
         avgDuration: data.totalDuration / data.sessions,
         sessions: data.sessions,
@@ -475,7 +475,7 @@ export class AnalyticsService {
       orderBy: { generatedAt: 'desc' },
     });
 
-    return insights.map(insight => ({
+    return insights.map((insight: any) => ({
       id: insight.id,
       userId: insight.userId,
       insightType: insight.insightType as InsightType,

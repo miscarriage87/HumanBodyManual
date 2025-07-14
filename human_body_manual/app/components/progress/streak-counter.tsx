@@ -54,13 +54,13 @@ export default function StreakCounter({
       opacity: 0.7,
     },
     burning: {
-      scale: [1, 1.1, 1],
-      rotate: [-2, 2, -2],
-      opacity: [0.7, 1, 0.7],
+      scale: 1.1,
+      rotate: 2,
+      opacity: 1,
       transition: {
         duration: 2,
         repeat: Infinity,
-        ease: "easeInOut"
+        repeatType: "reverse" as const
       }
     }
   };

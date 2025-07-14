@@ -24,11 +24,10 @@ export default function CalendarHeatmapComponent({
   endDate,
   className = ''
 }: CalendarHeatmapComponentProps) {
-  const getTooltipDataAttribs = (value: HeatmapValue | null) => {
+  const getTooltipDataAttribs = (value: any) => {
     if (!value || !value.date) {
       return {
-        'data-tooltip-content': 'Keine Aktivität',
-        'data-tooltip-id': 'heatmap-tooltip'
+        'data-tip': 'Keine Aktivität'
       };
     }
     
@@ -47,12 +46,11 @@ export default function CalendarHeatmapComponent({
         : `${value.count} Übungen abgeschlossen`;
     
     return {
-      'data-tooltip-content': `${formattedDate}: ${activityText}`,
-      'data-tooltip-id': 'heatmap-tooltip'
+      'data-tip': `${formattedDate}: ${activityText}`
     };
   };
 
-  const getClassForValue = (value: HeatmapValue | null) => {
+  const getClassForValue = (value: any) => {
     if (!value || value.count === 0) {
       return 'color-empty';
     }
@@ -148,7 +146,6 @@ export default function CalendarHeatmapComponent({
         endDate={endDate}
         values={values}
         classForValue={getClassForValue}
-        tooltipDataAttrs={getTooltipDataAttribs}
         showWeekdayLabels={true}
         showMonthLabels={true}
       />

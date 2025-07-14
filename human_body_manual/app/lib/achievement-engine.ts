@@ -25,7 +25,7 @@ export class AchievementEngine {
       select: { achievementId: true },
     });
 
-    const earnedIds = new Set(earnedAchievementIds.map(ua => ua.achievementId));
+    const earnedIds = new Set(earnedAchievementIds.map((ua: { achievementId: string }) => ua.achievementId));
 
     const availableAchievements = await prisma.achievement.findMany({
       where: {
@@ -79,7 +79,7 @@ export class AchievementEngine {
       orderBy: { earnedAt: 'desc' },
     });
 
-    return userAchievements.map(ua => ({
+    return userAchievements.map((ua: any) => ({
       id: ua.id,
       userId: ua.userId,
       achievementId: ua.achievementId,
@@ -317,7 +317,7 @@ export class AchievementEngine {
       distinct: ['bodyArea'],
     });
 
-    const uniqueBodyAreas = new Set(bodyAreasThisWeek.map(p => p.bodyArea));
+    const uniqueBodyAreas = new Set(bodyAreasThisWeek.map((p: any) => p.bodyArea));
     return uniqueBodyAreas.size >= 8; // All 8 body areas
   }
 
