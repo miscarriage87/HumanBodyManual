@@ -1,264 +1,476 @@
-import { ProgressTracker } from './progress-tracker';
-import { AnalyticsService } from './analytics-service';
-import { 
-  DataExportRequest, 
-  ProgressEntry, 
-  UserProgress, 
-  UserAchievement, 
-  UserInsight,
-  BodyAreaStats,
-  DateRange 
-} from './types';
+import { prisma } from './db';
+import { DataExportRequest, DateRange, PrivacySettings } from './types';
 
 export class ExportService {
   /**
-   * Export user progress data in the requested format
+   * Generate comprehensive data export for a user
    */
-  static async exportUserData(request: DataExportRequest): Promise<Blob> {
-    const data = await this.gatherExportData(request);
-    
-    if (request.format === 'csv') {
-      return this.generateCSV(data);
+  async generateUserDataExport(request: DataExportRequest): Promise<string> {
+    const { userId, format, dateRange, includeAchievements, includeBiometrics, includeInsights } = request;
+
+    // Fetch all user data
+    const userData = await this.fetchUserData(userId, {
+      includeAchievements,
+      includeBiometrics,
+      includeInsights
+    }, dateRange);
+
+    if (format === 'csv') {
+      return this.generateCSVExport(userData);
     } else {
-      return this.generateJSON(data);
+      return this.generateJSONExport(userData);
     }
   }
 
   /**
-   * Gather all data for export based on request parameters
+   * Fetch all user data for export
    */
-  private static async gatherExportData(request: DataExportRequest) {
-    const { userId, dateRange, includeAchievements, includeBiometrics, includeInsights } = request;
-
-    // Get basic progress data
-    const userProgress = await ProgressTracker.getUserProgress(userId, dateRange);
-    const progressEntries = await ProgressTracker.getProgressEntries(userId, dateRange);
-    
-    const exportData: any = {
-      exportInfo: {
-        userId,
-        exportDate: new Date().toISOString(),
-        dateRange: dateRange ? {
-          from: dateRange.from?.toISOString(),
-          to: dateRange.to?.toISOString()
-        } : null,
-        totalRecords: progressEntries.length
-      },
-      userProgress,
-      progressEntries: progressEntries.map(entry => ({
-        ...entry,
-        // Filter out biometric data if not requested
-        biometricData: includeBiometrics ? entry.biometricData : undefined
-      }))
+  private async fetchUserData(
+    userId: string, 
+    options: {
+      includeAchievements: boolean;
+      includeBiometrics: boolean;
+      includeInsights: boolean;
+    },
+    dateRange?: DateRange
+  ) {
+    const whereClause = {
+      userId,
+      ...(dateRange?.from && dateRange?.to ? {
+        createdAt: {
+          gte: dateRange.from,
+          lte: dateRange.to
+        }
+      } : {})
     };
 
-    // Add achievements if requested
-    if (includeAchievements) {
-      exportData.achievements = userProgress.recentAchievements;
-    }
-
-    // Add insights if requested
-    if (includeInsights) {
-      try {
-        const insights = await AnalyticsService.generateInsights(userId);
-        exportData.insights = insights;
-      } catch (error) {
-        console.warn('Could not fetch insights for export:', error);
-        exportData.insights = [];
+    // Fetch user profile
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        createdAt: true,
+        updatedAt: true
       }
+    });
+
+    // Fetch progress data
+    const progressData = await prisma.userProgress.findMany({
+      where: whereClause,
+      orderBy: { completedAt: 'desc' }
+    });
+
+    // Fetch streak data
+    const streakData = await prisma.userStreak.findMany({
+      where: { userId },
+      orderBy: { updatedAt: 'desc' }
+    });
+
+    let achievements = null;
+    if (options.includeAchievements) {
+      achievements = await prisma.userAchievement.findMany({
+        where: { userId },
+        include: {
+          achievement: true
+        },
+        orderBy: { earnedAt: 'desc' }
+      });
     }
 
-    return exportData;
+    let insights = null;
+    if (options.includeInsights) {
+      insights = await prisma.userInsight.findMany({
+        where: { userId },
+        orderBy: { generatedAt: 'desc' }
+      });
+    }
+
+    // Fetch community achievements
+    const communityAchievements = await prisma.userCommunityAchievement.findMany({
+      where: { userId },
+      include: {
+        achievement: true
+      },
+      orderBy: { earnedAt: 'desc' }
+    });
+
+    // Fetch challenge participation
+    const challengeParticipation = await prisma.challengeParticipant.findMany({
+      where: { userId },
+      include: {
+        challenge: true
+      },
+      orderBy: { joinedAt: 'desc' }
+    });
+
+    return {
+      user,
+      progressData,
+      streakData,
+      achievements,
+      insights,
+      communityAchievements,
+      challengeParticipation,
+      exportMetadata: {
+        generatedAt: new Date(),
+        dateRange,
+        totalRecords: progressData.length,
+        includeAchievements: options.includeAchievements,
+        includeBiometrics: options.includeBiometrics,
+        includeInsights: options.includeInsights
+      }
+    };
   }
 
   /**
-   * Generate CSV format export
+   * Generate CSV export format
    */
-  private static generateCSV(data: any): Blob {
+  private generateCSVExport(userData: any): string {
     const csvSections: string[] = [];
 
-    // Export Info Section
-    csvSections.push('=== EXPORT INFORMATION ===');
-    csvSections.push(`Export Date,${data.exportInfo.exportDate}`);
-    csvSections.push(`User ID,${data.exportInfo.userId}`);
-    csvSections.push(`Total Records,${data.exportInfo.totalRecords}`);
-    if (data.exportInfo.dateRange?.from) {
-      csvSections.push(`Date Range From,${data.exportInfo.dateRange.from}`);
-    }
-    if (data.exportInfo.dateRange?.to) {
-      csvSections.push(`Date Range To,${data.exportInfo.dateRange.to}`);
-    }
+    // User Profile Section
+    csvSections.push('=== USER PROFILE ===');
+    csvSections.push('Field,Value');
+    csvSections.push(`User ID,${userData.user.id}`);
+    csvSections.push(`Email,${userData.user.email}`);
+    csvSections.push(`Name,${userData.user.name || 'N/A'}`);
+    csvSections.push(`Account Created,${userData.user.createdAt.toISOString()}`);
     csvSections.push('');
 
-    // User Progress Summary
-    csvSections.push('=== PROGRESS SUMMARY ===');
-    csvSections.push(`Total Sessions,${data.userProgress.totalSessions}`);
-    csvSections.push(`Total Minutes,${data.userProgress.totalMinutes}`);
-    csvSections.push(`Current Streak,${data.userProgress.currentStreak}`);
-    csvSections.push(`Longest Streak,${data.userProgress.longestStreak}`);
-    csvSections.push(`Weekly Goal,${data.userProgress.weeklyGoal}`);
-    csvSections.push(`Weekly Progress,${data.userProgress.weeklyProgress}`);
-    csvSections.push(`Last Activity,${data.userProgress.lastActivity}`);
-    csvSections.push('');
-
-    // Body Area Stats
-    csvSections.push('=== BODY AREA STATISTICS ===');
-    csvSections.push('Body Area,Total Sessions,Total Minutes,Average Duration,Completion Rate,Last Practiced,Consistency Score,Mastery Level');
-    data.userProgress.bodyAreaStats.forEach((stat: BodyAreaStats) => {
-      csvSections.push([
-        stat.bodyArea,
-        stat.totalSessions,
-        stat.totalMinutes,
-        stat.averageSessionDuration.toFixed(1),
-        stat.completionRate,
-        stat.lastPracticed.toISOString(),
-        (stat.consistencyScore * 100).toFixed(1),
-        stat.masteryLevel
-      ].join(','));
+    // Progress Data Section
+    csvSections.push('=== EXERCISE PROGRESS ===');
+    csvSections.push('Date,Exercise ID,Body Area,Duration (min),Difficulty,Mood,Energy Level,Notes');
+    
+    userData.progressData.forEach((progress: any) => {
+      const row = [
+        progress.completedAt.toISOString(),
+        progress.exerciseId,
+        progress.bodyArea,
+        progress.durationMinutes || 'N/A',
+        progress.difficultyLevel,
+        progress.mood || 'N/A',
+        progress.energyLevel || 'N/A',
+        `"${progress.sessionNotes || ''}"`
+      ].join(',');
+      csvSections.push(row);
     });
     csvSections.push('');
 
-    // Progress Entries
-    csvSections.push('=== DETAILED PROGRESS ENTRIES ===');
-    csvSections.push('Date,Exercise ID,Body Area,Duration (min),Difficulty,Mood,Energy Level,Session Notes');
-    data.progressEntries.forEach((entry: ProgressEntry) => {
-      csvSections.push([
-        entry.completedAt.toISOString(),
-        `"${entry.exerciseId}"`,
-        entry.bodyArea,
-        entry.durationMinutes || '',
-        entry.difficultyLevel,
-        entry.mood || '',
-        entry.energyLevel || '',
-        entry.sessionNotes ? `"${entry.sessionNotes.replace(/"/g, '""')}"` : ''
-      ].join(','));
+    // Streak Data Section
+    csvSections.push('=== STREAK DATA ===');
+    csvSections.push('Streak Type,Current Count,Best Count,Last Activity,Started At');
+    
+    userData.streakData.forEach((streak: any) => {
+      const row = [
+        streak.streakType,
+        streak.currentCount,
+        streak.bestCount,
+        streak.lastActivityDate?.toISOString() || 'N/A',
+        streak.startedAt.toISOString()
+      ].join(',');
+      csvSections.push(row);
     });
+    csvSections.push('');
 
-    // Achievements
-    if (data.achievements) {
-      csvSections.push('');
+    // Achievements Section
+    if (userData.achievements) {
       csvSections.push('=== ACHIEVEMENTS ===');
-      csvSections.push('Achievement Name,Description,Category,Rarity,Points,Earned Date');
-      data.achievements.forEach((achievement: UserAchievement) => {
-        csvSections.push([
-          `"${achievement.achievement.name}"`,
-          `"${achievement.achievement.description}"`,
-          achievement.achievement.category,
-          achievement.achievement.rarity,
-          achievement.achievement.points,
-          achievement.earnedAt.toISOString()
-        ].join(','));
+      csvSections.push('Achievement Name,Description,Category,Points,Rarity,Earned Date');
+      
+      userData.achievements.forEach((userAchievement: any) => {
+        const achievement = userAchievement.achievement;
+        const row = [
+          `"${achievement.name}"`,
+          `"${achievement.description}"`,
+          achievement.category,
+          achievement.points,
+          achievement.rarity,
+          userAchievement.earnedAt.toISOString()
+        ].join(',');
+        csvSections.push(row);
       });
-    }
-
-    // Insights
-    if (data.insights) {
       csvSections.push('');
-      csvSections.push('=== INSIGHTS ===');
-      csvSections.push('Type,Title,Message,Priority,Generated Date,Viewed Date');
-      data.insights.forEach((insight: UserInsight) => {
-        csvSections.push([
-          insight.insightType,
-          `"${insight.content.title}"`,
-          `"${insight.content.message.replace(/"/g, '""')}"`,
-          insight.content.priority,
-          insight.generatedAt.toISOString(),
-          insight.viewedAt?.toISOString() || ''
-        ].join(','));
+    }
+
+    // Community Achievements Section
+    if (userData.communityAchievements.length > 0) {
+      csvSections.push('=== COMMUNITY ACHIEVEMENTS ===');
+      csvSections.push('Achievement Name,Description,Points,Rarity,Earned Date');
+      
+      userData.communityAchievements.forEach((userAchievement: any) => {
+        const achievement = userAchievement.achievement;
+        const row = [
+          `"${achievement.name}"`,
+          `"${achievement.description}"`,
+          achievement.points,
+          achievement.rarity,
+          userAchievement.earnedAt.toISOString()
+        ].join(',');
+        csvSections.push(row);
       });
+      csvSections.push('');
     }
 
-    const csvContent = csvSections.join('\n');
-    return new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-  }
-
-  /**
-   * Generate JSON format export
-   */
-  private static generateJSON(data: any): Blob {
-    const jsonContent = JSON.stringify(data, null, 2);
-    return new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
-  }
-
-  /**
-   * Generate a filename for the export
-   */
-  static generateExportFilename(format: 'csv' | 'json', userId: string): string {
-    const timestamp = new Date().toISOString().split('T')[0];
-    const userIdShort = userId.substring(0, 8);
-    return `human-body-manual-export-${userIdShort}-${timestamp}.${format}`;
-  }
-
-  /**
-   * Download a blob as a file
-   */
-  static downloadBlob(blob: Blob, filename: string): void {
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
-  }
-
-  /**
-   * Get export statistics for display
-   */
-  static async getExportPreview(userId: string, dateRange?: DateRange): Promise<{
-    totalSessions: number;
-    totalMinutes: number;
-    bodyAreasCount: number;
-    achievementsCount: number;
-    dateRangeText: string;
-  }> {
-    const userProgress = await ProgressTracker.getUserProgress(userId, dateRange);
-    const progressEntries = await ProgressTracker.getProgressEntries(userId, dateRange);
-
-    const bodyAreasWithData = new Set(progressEntries.map(entry => entry.bodyArea));
-
-    let dateRangeText = 'Alle Daten';
-    if (dateRange?.from && dateRange?.to) {
-      dateRangeText = `${dateRange.from.toLocaleDateString('de-DE')} - ${dateRange.to.toLocaleDateString('de-DE')}`;
-    } else if (dateRange?.from) {
-      dateRangeText = `Ab ${dateRange.from.toLocaleDateString('de-DE')}`;
-    } else if (dateRange?.to) {
-      dateRangeText = `Bis ${dateRange.to.toLocaleDateString('de-DE')}`;
+    // Insights Section
+    if (userData.insights) {
+      csvSections.push('=== INSIGHTS ===');
+      csvSections.push('Type,Generated Date,Viewed Date,Content');
+      
+      userData.insights.forEach((insight: any) => {
+        const row = [
+          insight.insightType,
+          insight.generatedAt.toISOString(),
+          insight.viewedAt?.toISOString() || 'Not Viewed',
+          `"${JSON.stringify(insight.content)}"`
+        ].join(',');
+        csvSections.push(row);
+      });
+      csvSections.push('');
     }
 
-    return {
-      totalSessions: progressEntries.length,
-      totalMinutes: progressEntries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0),
-      bodyAreasCount: bodyAreasWithData.size,
-      achievementsCount: userProgress.recentAchievements.length,
-      dateRangeText
+    // Export Metadata
+    csvSections.push('=== EXPORT METADATA ===');
+    csvSections.push('Field,Value');
+    csvSections.push(`Generated At,${userData.exportMetadata.generatedAt.toISOString()}`);
+    csvSections.push(`Total Progress Records,${userData.exportMetadata.totalRecords}`);
+    csvSections.push(`Date Range,${userData.exportMetadata.dateRange ? `${userData.exportMetadata.dateRange.from?.toISOString()} to ${userData.exportMetadata.dateRange.to?.toISOString()}` : 'All Time'}`);
+
+    return csvSections.join('\n');
+  }
+
+  /**
+   * Generate JSON export format
+   */
+  private generateJSONExport(userData: any): string {
+    return JSON.stringify(userData, null, 2);
+  }
+
+  /**
+   * Get user's privacy settings
+   */
+  async getPrivacySettings(userId: string): Promise<PrivacySettings | null> {
+    // For now, we'll store privacy settings in user insights with a special type
+    const privacyInsight = await prisma.userInsight.findFirst({
+      where: {
+        userId,
+        insightType: 'privacy_settings'
+      },
+      orderBy: { generatedAt: 'desc' }
+    });
+
+    if (!privacyInsight) {
+      // Return default privacy settings
+      return {
+        userId,
+        shareProgressWithCommunity: true,
+        allowBiometricCollection: true,
+        allowInsightGeneration: true,
+        dataRetentionDays: 365,
+        anonymizeInCommunityStats: true
+      };
+    }
+
+    return privacyInsight.content as unknown as PrivacySettings;
+  }
+
+  /**
+   * Update user's privacy settings
+   */
+  async updatePrivacySettings(userId: string, settings: Partial<PrivacySettings>): Promise<PrivacySettings> {
+    const currentSettings = await this.getPrivacySettings(userId) || {
+      userId,
+      shareProgressWithCommunity: true,
+      allowBiometricCollection: true,
+      allowInsightGeneration: true,
+      dataRetentionDays: 365,
+      anonymizeInCommunityStats: true
     };
-  }
 
-  /**
-   * Validate export request
-   */
-  static validateExportRequest(request: DataExportRequest): { isValid: boolean; errors: string[] } {
-    const errors: string[] = [];
+    const updatedSettings = { ...currentSettings, ...settings, userId };
 
-    if (!request.userId) {
-      errors.push('User ID is required');
-    }
-
-    if (!['csv', 'json'].includes(request.format)) {
-      errors.push('Format must be either csv or json');
-    }
-
-    if (request.dateRange?.from && request.dateRange?.to) {
-      if (request.dateRange.from > request.dateRange.to) {
-        errors.push('Start date must be before end date');
+    // Store updated settings as a user insight
+    await prisma.userInsight.create({
+      data: {
+        userId,
+        insightType: 'privacy_settings',
+        content: updatedSettings,
+        generatedAt: new Date()
       }
-    }
+    });
+
+    return updatedSettings;
+  }
+
+  /**
+   * Delete all user data (for account deletion)
+   */
+  async deleteAllUserData(userId: string): Promise<void> {
+    // Delete in order to respect foreign key constraints
+    await prisma.$transaction(async (tx) => {
+      // Delete user insights
+      await tx.userInsight.deleteMany({
+        where: { userId }
+      });
+
+      // Delete user achievements
+      await tx.userAchievement.deleteMany({
+        where: { userId }
+      });
+
+      // Delete user community achievements
+      await tx.userCommunityAchievement.deleteMany({
+        where: { userId }
+      });
+
+      // Delete challenge participation
+      await tx.challengeParticipant.deleteMany({
+        where: { userId }
+      });
+
+      // Delete user streaks
+      await tx.userStreak.deleteMany({
+        where: { userId }
+      });
+
+      // Delete user progress
+      await tx.userProgress.deleteMany({
+        where: { userId }
+      });
+
+      // Finally delete the user
+      await tx.user.delete({
+        where: { id: userId }
+      });
+    });
+  }
+
+  /**
+   * Generate data portability package
+   */
+  async generatePortabilityPackage(userId: string): Promise<{
+    standardFormat: any;
+    platformSpecific: any;
+  }> {
+    const userData = await this.fetchUserData(userId, {
+      includeAchievements: true,
+      includeBiometrics: true,
+      includeInsights: true
+    }, undefined);
+
+    // Standard format following common data portability standards
+    const standardFormat = {
+      profile: {
+        id: userData.user?.id || '',
+        email: userData.user?.email || '',
+        name: userData.user?.name || '',
+        joinDate: userData.user?.createdAt || new Date()
+      },
+      activities: userData.progressData.map((progress: any) => ({
+        id: progress.id,
+        type: 'exercise_completion',
+        timestamp: progress.completedAt,
+        duration: progress.durationMinutes,
+        category: progress.bodyArea,
+        subcategory: progress.exerciseId,
+        difficulty: progress.difficultyLevel,
+        notes: progress.sessionNotes,
+        mood: progress.mood,
+        energy: progress.energyLevel
+      })),
+      achievements: userData.achievements?.map((ua: any) => ({
+        id: ua.achievement.id,
+        name: ua.achievement.name,
+        description: ua.achievement.description,
+        category: ua.achievement.category,
+        earnedDate: ua.earnedAt,
+        points: ua.achievement.points
+      })) || [],
+      statistics: {
+        totalSessions: userData.progressData.length,
+        streaks: userData.streakData.map((streak: any) => ({
+          type: streak.streakType,
+          current: streak.currentCount,
+          best: streak.bestCount,
+          lastActivity: streak.lastActivityDate
+        }))
+      }
+    };
+
+    // Platform-specific format (full data structure)
+    const platformSpecific = userData;
 
     return {
-      isValid: errors.length === 0,
-      errors
+      standardFormat,
+      platformSpecific
     };
+  }
+
+  /**
+   * Anonymize user data for community statistics
+   */
+  async anonymizeUserDataForCommunity(userId: string): Promise<any> {
+    const progressData = await prisma.userProgress.findMany({
+      where: { userId },
+      select: {
+        exerciseId: true,
+        bodyArea: true,
+        completedAt: true,
+        durationMinutes: true,
+        difficultyLevel: true
+        // Exclude personal identifiers and notes
+      }
+    });
+
+    return {
+      anonymizedId: this.generateAnonymizedId(userId),
+      totalSessions: progressData.length,
+      bodyAreaDistribution: this.calculateBodyAreaDistribution(progressData),
+      averageSessionDuration: this.calculateAverageSessionDuration(progressData),
+      consistencyScore: this.calculateConsistencyScore(progressData),
+      // No personal information included
+    };
+  }
+
+  private generateAnonymizedId(userId: string): string {
+    // Generate a consistent but anonymous ID for the user
+    const crypto = require('crypto');
+    return crypto.createHash('sha256').update(userId + 'anonymous_salt').digest('hex').substring(0, 8);
+  }
+
+  private calculateBodyAreaDistribution(progressData: any[]): Record<string, number> {
+    const distribution: Record<string, number> = {};
+    progressData.forEach(progress => {
+      distribution[progress.bodyArea] = (distribution[progress.bodyArea] || 0) + 1;
+    });
+    return distribution;
+  }
+
+  private calculateAverageSessionDuration(progressData: any[]): number {
+    const validDurations = progressData
+      .filter(p => p.durationMinutes)
+      .map(p => p.durationMinutes);
+    
+    if (validDurations.length === 0) return 0;
+    
+    return validDurations.reduce((sum, duration) => sum + duration, 0) / validDurations.length;
+  }
+
+  private calculateConsistencyScore(progressData: any[]): number {
+    if (progressData.length === 0) return 0;
+
+    // Calculate consistency based on regularity of sessions
+    const dates = progressData.map(p => new Date(p.completedAt).toDateString());
+    const uniqueDates = new Set(dates);
+    
+    const daysSinceFirst = Math.ceil(
+      (new Date().getTime() - new Date(progressData[progressData.length - 1].completedAt).getTime()) 
+      / (1000 * 60 * 60 * 24)
+    );
+    
+    return Math.min(100, (uniqueDates.size / Math.max(daysSinceFirst, 1)) * 100);
   }
 }
+
+export const exportService = new ExportService();

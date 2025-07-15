@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { ExportService } from '@/lib/export-service';
+import { exportService } from '@/lib/export-service';
 import { getCurrentUser, getDemoUser } from '@/lib/auth-helper';
 import { DataExportRequest } from '@/lib/types';
 
@@ -29,29 +29,16 @@ export async function POST(request: NextRequest) {
       includeInsights: body.includeInsights ?? true,
     };
 
-    // Validate request
-    const validation = ExportService.validateExportRequest(exportRequest);
-    if (!validation.isValid) {
-      return NextResponse.json(
-        { error: 'Invalid export request', details: validation.errors },
-        { status: 400 }
-      );
-    }
-
     // Generate export
-    const blob = await ExportService.exportUserData(exportRequest);
-    const filename = ExportService.generateExportFilename(exportRequest.format, user.id);
-
-    // Convert blob to buffer for response
-    const buffer = await blob.arrayBuffer();
+    const exportData = await exportService.generateUserDataExport(exportRequest);
+    const filename = `analytics-export-${user.id}-${new Date().toISOString().split('T')[0]}.${exportRequest.format}`;
 
     // Set appropriate headers
     const headers = new Headers();
     headers.set('Content-Type', exportRequest.format === 'csv' ? 'text/csv' : 'application/json');
     headers.set('Content-Disposition', `attachment; filename="${filename}"`);
-    headers.set('Content-Length', buffer.byteLength.toString());
 
-    return new NextResponse(buffer, {
+    return new NextResponse(exportData, {
       status: 200,
       headers,
     });
@@ -81,8 +68,9 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const fromDate = searchParams.get('from');
     const toDate = searchParams.get('to');
+    const format = searchParams.get('format') || 'json';
 
-    // Build date range for preview
+    // Build date range for export
     let dateRange = undefined;
     if (fromDate || toDate) {
       dateRange = {
@@ -91,12 +79,25 @@ export async function GET(request: NextRequest) {
       };
     }
 
-    // Get export preview
-    const preview = await ExportService.getExportPreview(user.id, dateRange);
+    const exportRequest: DataExportRequest = {
+      userId: user.id,
+      format: format as 'csv' | 'json',
+      dateRange,
+      includeAchievements: true,
+      includeBiometrics: false,
+      includeInsights: true,
+    };
 
-    return NextResponse.json({
-      success: true,
-      data: preview,
+    // Generate export data
+    const exportData = await exportService.generateUserDataExport(exportRequest);
+    const filename = `analytics-export-${user.id}-${new Date().toISOString().split('T')[0]}.${format}`;
+
+    return new NextResponse(exportData, {
+      status: 200,
+      headers: {
+        'Content-Type': format === 'csv' ? 'text/csv' : 'application/json',
+        'Content-Disposition': `attachment; filename="${filename}"`,
+      },
     });
 
   } catch (error) {

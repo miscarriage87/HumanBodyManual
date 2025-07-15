@@ -22,7 +22,7 @@ import {
   AlertCircle,
   Loader2
 } from 'lucide-react';
-import { ExportService } from '@/lib/export-service';
+import { exportService } from '@/lib/export-service';
 import { DataExportRequest, DateRange } from '@/lib/types';
 import { toast } from 'sonner';
 
@@ -62,7 +62,28 @@ export default function ProgressExport({
 
   const loadExportPreview = async () => {
     try {
-      const preview = await ExportService.getExportPreview(userId, dateRange);
+      // Create a mock preview for now - in a real implementation this would be a separate method
+      const exportRequest: DataExportRequest = {
+        userId,
+        format: 'json',
+        dateRange,
+        includeAchievements,
+        includeBiometrics,
+        includeInsights
+      };
+      
+      // Generate export data to get preview info
+      const exportData = await exportService.generateUserDataExport(exportRequest);
+      const parsedData = JSON.parse(exportData);
+      
+      const preview = {
+        totalSessions: parsedData.progressData?.length || 0,
+        totalMinutes: parsedData.progressData?.reduce((sum: number, p: any) => sum + (p.durationMinutes || 0), 0) || 0,
+        bodyAreasCount: new Set(parsedData.progressData?.map((p: any) => p.bodyArea) || []).size,
+        achievementsCount: parsedData.achievements?.length || 0,
+        dateRangeText: dateRange ? `${dateRange.from?.toLocaleDateString()} - ${dateRange.to?.toLocaleDateString()}` : 'Alle Daten'
+      };
+      
       setExportPreview(preview);
     } catch (error) {
       console.error('Error loading export preview:', error);
@@ -83,19 +104,22 @@ export default function ProgressExport({
         includeInsights
       };
 
-      // Validate request
-      const validation = ExportService.validateExportRequest(exportRequest);
-      if (!validation.isValid) {
-        toast.error(`Export-Fehler: ${validation.errors.join(', ')}`);
-        return;
-      }
-
       // Generate export
-      const blob = await ExportService.exportUserData(exportRequest);
-      const filename = ExportService.generateExportFilename(exportFormat, userId);
+      const exportData = await exportService.generateUserDataExport(exportRequest);
+      const filename = `human-body-manual-export-${userId}-${new Date().toISOString().split('T')[0]}.${exportFormat}`;
       
-      // Download file
-      ExportService.downloadBlob(blob, filename);
+      // Create and download file
+      const blob = new Blob([exportData], { 
+        type: exportFormat === 'csv' ? 'text/csv' : 'application/json' 
+      });
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
       
       toast.success(`Daten erfolgreich als ${exportFormat.toUpperCase()} exportiert!`);
       
