@@ -70,6 +70,7 @@ export default function UebungPage({ params }: UebungPageProps) {
         sessionNotes: sessionData.sessionNotes,
         mood: sessionData.mood,
         energyLevel: sessionData.energyLevel,
+        biometricData: sessionData.biometricData,
       });
 
       setNewAchievements(achievements);
@@ -447,6 +448,7 @@ export default function UebungPage({ params }: UebungPageProps) {
         sessionDuration={sessionDuration}
         onSubmit={handleSessionSubmit}
         newAchievements={newAchievements}
+        userId="user-123" // TODO: Replace with actual user ID from auth
       />
     </div>
   )

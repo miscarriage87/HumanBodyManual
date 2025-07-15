@@ -225,6 +225,26 @@ export interface BiometricSnapshot {
   confidence?: number;
 }
 
+export interface BiometricCorrelation {
+  exerciseId: string;
+  bodyArea: string;
+  avgHeartRate?: number;
+  avgHrv?: number;
+  avgStressLevel?: number;
+  avgRecoveryScore?: number;
+  sessionCount: number;
+  correlationStrength: number;
+  insights: string[];
+}
+
+export interface BiometricTrend {
+  metric: 'heartRate' | 'hrv' | 'stressLevel' | 'sleepQuality' | 'recoveryScore';
+  period: 'week' | 'month' | 'quarter';
+  values: { date: Date; value: number }[];
+  trend: 'improving' | 'declining' | 'stable';
+  changePercentage: number;
+}
+
 // Community and Social Features
 
 export interface CommunityStats {

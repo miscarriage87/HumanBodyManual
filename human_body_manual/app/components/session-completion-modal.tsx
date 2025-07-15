@@ -8,9 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Slider } from '@/components/ui/slider';
-import { Achievement, MoodRating, EnergyRating, DifficultyLevel } from '@/lib/types';
+import { Achievement, MoodRating, EnergyRating, DifficultyLevel, BiometricSnapshot } from '@/lib/types';
 import { Exercise } from '@/data/exercises';
 import AchievementCelebrationModal from './achievement-celebration-modal';
+import { useBiometricIntegration } from '@/hooks/use-biometric-integration';
 
 interface SessionCompletionModalProps {
   isOpen: boolean;
@@ -19,6 +20,7 @@ interface SessionCompletionModalProps {
   sessionDuration?: number;
   onSubmit: (data: SessionCompletionData) => void;
   newAchievements?: Achievement[];
+  userId?: string;
 }
 
 export interface SessionCompletionData {
@@ -27,6 +29,7 @@ export interface SessionCompletionData {
   sessionNotes?: string;
   mood?: MoodRating;
   energyLevel?: EnergyRating;
+  biometricData?: BiometricSnapshot;
 }
 
 const moodOptions: { value: MoodRating; label: string; emoji: string; color: string }[] = [
@@ -51,7 +54,8 @@ export default function SessionCompletionModal({
   exercise,
   sessionDuration,
   onSubmit,
-  newAchievements = []
+  newAchievements = [],
+  userId
 }: SessionCompletionModalProps) {
   const [formData, setFormData] = useState<SessionCompletionData>({
     durationMinutes: sessionDuration,
@@ -62,6 +66,10 @@ export default function SessionCompletionModal({
   });
   const [showAchievements, setShowAchievements] = useState(false);
   const [currentAchievementIndex, setCurrentAchievementIndex] = useState(0);
+  const [showBiometricSection, setShowBiometricSection] = useState(false);
+
+  // Get biometric integration hook if userId is provided
+  const biometricIntegration = userId ? useBiometricIntegration({ userId, autoFetch: false }) : null;
 
   useEffect(() => {
     if (newAchievements.length > 0) {
@@ -206,6 +214,123 @@ export default function SessionCompletionModal({
                 ))}
               </div>
             </div>
+
+            {/* Biometric Data Section */}
+            {userId && biometricIntegration?.privacySettings?.allowBiometricCollection && (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <label className="block text-sm font-medium text-charcoal-700">
+                    Biometrische Daten (optional)
+                  </label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setShowBiometricSection(!showBiometricSection)}
+                    className="text-xs"
+                  >
+                    <Icons.Activity size={16} className="mr-1" />
+                    {showBiometricSection ? 'Ausblenden' : 'Hinzufügen'}
+                  </Button>
+                </div>
+                
+                {showBiometricSection && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="space-y-4 p-4 bg-blue-50 rounded-xl border border-blue-200"
+                  >
+                    <p className="text-xs text-charcoal-600 mb-3">
+                      Füge biometrische Daten hinzu, um bessere Einblicke in deine Übungseffektivität zu erhalten.
+                    </p>
+                    
+                    {/* Heart Rate */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-charcoal-700">
+                        Herzfrequenz (bpm)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <Slider
+                          value={[formData.biometricData?.heartRate || 70]}
+                          onValueChange={([value]) => setFormData(prev => ({
+                            ...prev,
+                            biometricData: {
+                              ...prev.biometricData,
+                              heartRate: value,
+                              timestamp: new Date(),
+                              source: 'manual' as const
+                            }
+                          }))}
+                          max={220}
+                          min={30}
+                          step={1}
+                          className="flex-1"
+                        />
+                        <div className="w-12 text-center text-xs font-medium">
+                          {formData.biometricData?.heartRate || 70}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Stress Level */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-charcoal-700">
+                        Stresslevel (1-10)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <Slider
+                          value={[formData.biometricData?.stressLevel || 5]}
+                          onValueChange={([value]) => setFormData(prev => ({
+                            ...prev,
+                            biometricData: {
+                              ...prev.biometricData,
+                              stressLevel: value,
+                              timestamp: new Date(),
+                              source: 'manual' as const
+                            }
+                          }))}
+                          max={10}
+                          min={1}
+                          step={1}
+                          className="flex-1"
+                        />
+                        <div className="w-12 text-center text-xs font-medium">
+                          {formData.biometricData?.stressLevel || 5}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Recovery Score */}
+                    <div className="space-y-2">
+                      <label className="block text-xs font-medium text-charcoal-700">
+                        Erholungswert (0-100)
+                      </label>
+                      <div className="flex items-center gap-3">
+                        <Slider
+                          value={[formData.biometricData?.recoveryScore || 75]}
+                          onValueChange={([value]) => setFormData(prev => ({
+                            ...prev,
+                            biometricData: {
+                              ...prev.biometricData,
+                              recoveryScore: value,
+                              timestamp: new Date(),
+                              source: 'manual' as const
+                            }
+                          }))}
+                          max={100}
+                          min={0}
+                          step={1}
+                          className="flex-1"
+                        />
+                        <div className="w-12 text-center text-xs font-medium">
+                          {formData.biometricData?.recoveryScore || 75}
+                        </div>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+              </div>
+            )}
 
             {/* Session Notes */}
             <div className="space-y-3">
