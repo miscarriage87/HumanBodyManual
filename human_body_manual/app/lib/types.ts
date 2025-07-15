@@ -248,19 +248,23 @@ export interface BiometricTrend {
 // Community and Social Features
 
 export interface CommunityStats {
-  totalUsers: number;
-  activeUsers: number;
-  popularExercises: PopularExercise[];
-  averageSessionDuration: number;
+  id: string;
+  statType: 'daily' | 'weekly' | 'monthly';
+  date: Date;
+  totalActiveUsers: number;
   totalSessions: number;
-  bodyAreaPopularity: BodyAreaPopularity[];
+  averageSessionDuration: number;
+  popularExercises: PopularExercise[];
+  bodyAreaStats: BodyAreaPopularity[];
+  generatedAt: Date;
 }
 
 export interface PopularExercise {
   exerciseId: string;
   completionCount: number;
-  averageRating: number;
+  averageRating?: number;
   trendDirection: 'up' | 'down' | 'stable';
+  rank: number;
 }
 
 export interface BodyAreaPopularity {
@@ -268,6 +272,8 @@ export interface BodyAreaPopularity {
   practitionerCount: number;
   averageSessionsPerWeek: number;
   popularityRank: number;
+  totalSessions: number;
+  averageDuration: number;
 }
 
 export interface CommunityChallenge {
@@ -278,15 +284,85 @@ export interface CommunityChallenge {
   endDate: Date;
   targetMetric: string;
   targetValue: number;
-  participants: number;
   rewards: ChallengeReward[];
   isActive: boolean;
+  participantCount: number;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 export interface ChallengeReward {
-  type: 'badge' | 'points' | 'unlock';
+  type: 'badge' | 'points' | 'unlock' | 'community_achievement';
   value: string | number;
   description: string;
+}
+
+export interface ChallengeParticipant {
+  id: string;
+  userId: string;
+  challengeId: string;
+  joinedAt: Date;
+  progress?: ChallengeProgress;
+  completed: boolean;
+  completedAt?: Date;
+}
+
+export interface ChallengeProgress {
+  currentValue: number;
+  targetValue: number;
+  progressPercentage: number;
+  lastUpdated: Date;
+  milestones?: ChallengeMilestone[];
+}
+
+export interface ChallengeMilestone {
+  value: number;
+  description: string;
+  achieved: boolean;
+  achievedAt?: Date;
+}
+
+export interface CommunityAchievement {
+  id: string;
+  name: string;
+  description: string;
+  criteria: CommunityAchievementCriteria;
+  badgeIcon?: string;
+  points: number;
+  rarity: AchievementRarity;
+  isActive: boolean;
+  createdAt: Date;
+}
+
+export interface CommunityAchievementCriteria {
+  type: 'challenge_completion' | 'community_participation' | 'leaderboard_rank' | 'social_engagement';
+  requirements: Record<string, any>;
+  timeframe?: 'daily' | 'weekly' | 'monthly' | 'all_time';
+}
+
+export interface UserCommunityAchievement {
+  id: string;
+  userId: string;
+  achievementId: string;
+  achievement: CommunityAchievement;
+  earnedAt: Date;
+  context?: Record<string, any>;
+}
+
+export interface LeaderboardEntry {
+  rank: number;
+  percentile: number;
+  value: number;
+  isCurrentUser?: boolean;
+  anonymizedId?: string; // For display purposes only
+}
+
+export interface Leaderboard {
+  metric: string;
+  period: 'daily' | 'weekly' | 'monthly' | 'all_time';
+  entries: LeaderboardEntry[];
+  totalParticipants: number;
+  lastUpdated: Date;
 }
 
 // Export and Privacy Types

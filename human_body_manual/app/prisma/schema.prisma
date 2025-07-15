@@ -17,10 +17,12 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Progress tracking relationships
-  progress     UserProgress[]
-  achievements UserAchievement[]
-  streaks      UserStreak[]
-  insights     UserInsight[]
+  progress              UserProgress[]
+  achievements          UserAchievement[]
+  streaks               UserStreak[]
+  insights              UserInsight[]
+  challengeParticipants ChallengeParticipant[]
+  communityAchievements UserCommunityAchievement[]
 
   @@map("users")
 }
@@ -110,4 +112,91 @@ model UserInsight {
 
   @@index([userId, insightType])
   @@map("user_insights")
+}
+
+// Community challenges
+model CommunityChallenge {
+  id           String   @id @default(cuid())
+  title        String
+  description  String
+  startDate    DateTime
+  endDate      DateTime
+  targetMetric String
+  targetValue  Int
+  rewards      Json
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  participants ChallengeParticipant[]
+
+  @@index([isActive, startDate, endDate])
+  @@map("community_challenges")
+}
+
+// Challenge participation tracking
+model ChallengeParticipant {
+  id          String   @id @default(cuid())
+  userId      String
+  challengeId String
+  joinedAt    DateTime @default(now())
+  progress    Json?
+  completed   Boolean  @default(false)
+  completedAt DateTime?
+
+  user      User               @relation(fields: [userId], references: [id], onDelete: Cascade)
+  challenge CommunityChallenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, challengeId])
+  @@index([challengeId, completed])
+  @@map("challenge_participants")
+}
+
+// Community statistics (aggregated anonymized data)
+model CommunityStats {
+  id                    String   @id @default(cuid())
+  statType              String   // 'daily', 'weekly', 'monthly'
+  date                  DateTime
+  totalActiveUsers      Int      @default(0)
+  totalSessions         Int      @default(0)
+  averageSessionDuration Float   @default(0)
+  popularExercises      Json     // Array of exercise stats
+  bodyAreaStats         Json     // Array of body area popularity
+  generatedAt           DateTime @default(now())
+
+  @@unique([statType, date])
+  @@index([statType, date])
+  @@map("community_stats")
+}
+
+// Community achievements (special achievements for community participation)
+model CommunityAchievement {
+  id          String  @id @default(cuid())
+  name        String
+  description String
+  criteria    Json
+  badgeIcon   String?
+  points      Int     @default(0)
+  rarity      String  @default("common")
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now())
+
+  userAchievements UserCommunityAchievement[]
+
+  @@map("community_achievements")
+}
+
+// User community achievement tracking
+model UserCommunityAchievement {
+  id            String   @id @default(cuid())
+  userId        String
+  achievementId String
+  earnedAt      DateTime @default(now())
+  context       Json?    // Additional context about how it was earned
+
+  user        User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement CommunityAchievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@map("user_community_achievements")
 }
