@@ -415,6 +415,7 @@ export default function MobileProgressDashboard({ className = '' }: MobileProgre
   return (
     <div 
       className={`mobile-progress-dashboard ${className}`}
+      data-testid="mobile-progress-dashboard"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

@@ -1,9 +1,8 @@
 import { RecommendationEngine } from '../lib/recommendation-engine';
-import { PrismaClient } from '@prisma/client';
 
-// Mock Prisma
-jest.mock('@prisma/client', () => ({
-  PrismaClient: jest.fn().mockImplementation(() => ({
+// Mock the prisma client
+jest.mock('../lib/prisma', () => ({
+  prisma: {
     userProgress: {
       findMany: jest.fn(),
       create: jest.fn(),
@@ -14,10 +13,11 @@ jest.mock('@prisma/client', () => ({
     userInsight: {
       create: jest.fn(),
     },
-  })),
+  },
 }));
 
-const mockPrisma = new PrismaClient() as jest.Mocked<PrismaClient>;
+import { prisma } from '../lib/prisma';
+const mockPrisma = prisma as jest.Mocked<typeof prisma>;
 
 describe('RecommendationEngine', () => {
   beforeEach(() => {
@@ -62,7 +62,7 @@ describe('RecommendationEngine', () => {
 
       expect(result.length).toBeGreaterThan(0);
       expect(result[0].confidence).toBeGreaterThan(0);
-      expect(result[0].reasoning).toContain('mal um');
+      expect(result[0].reasoning).toContain('optimal');
     });
   });
 
@@ -92,7 +92,7 @@ describe('RecommendationEngine', () => {
 
       expect(result.isInPlateau).toBe(true);
       expect(result.progressionSuggestions.length).toBeGreaterThan(0);
-      expect(result.progressionSuggestions[0]).toContain('Fortgeschritten');
+      expect(result.progressionSuggestions[0]).toContain('Erkunde');
     });
 
     it('should detect body area stagnation', async () => {

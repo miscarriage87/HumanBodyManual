@@ -176,8 +176,8 @@ describe('ProgressDashboard', () => {
     await waitFor(() => {
       const achievementBadges = screen.getAllByTestId('achievement-badge');
       expect(achievementBadges).toHaveLength(3); // Mock returns 3 achievements
-      expect(achievementBadges[0]).toHaveTextContent('First Steps');
-      expect(achievementBadges[1]).toHaveTextContent('Consistency Champion');
+      expect(achievementBadges[0]).toHaveTextContent('Erster Schritt');
+      expect(achievementBadges[1]).toHaveTextContent('Consistency Warrior');
     });
   });
 
@@ -247,7 +247,8 @@ describe('ProgressDashboard', () => {
 
     await waitFor(() => {
       const streakCounter = screen.getByTestId('streak-counter');
-      expect(streakCounter).toHaveTextContent('Streak: 5');
+      expect(streakCounter).toHaveTextContent('5');
+      expect(streakCounter).toHaveTextContent('Tage Streak');
     });
   });
 

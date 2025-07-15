@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { prisma } from './prisma';
 import { 
   UserInsight, 
   Recommendation, 
@@ -9,8 +9,6 @@ import {
   ProgressEntry
 } from './types';
 import { exercises, Exercise } from '../data/exercises';
-
-const prisma = new PrismaClient();
 
 export interface OptimalPracticeTime {
   hour: number;

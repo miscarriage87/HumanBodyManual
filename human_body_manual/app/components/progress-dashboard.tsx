@@ -266,7 +266,7 @@ export default function ProgressDashboard() {
         
         {earnedAchievements.length > 0 ? (
           <div className="space-y-6">
-            {['bronze', 'silver', 'gold', 'platinum'].map(rarity => {
+            {['common', 'rare', 'epic', 'legendary'].map(rarity => {
               const rarityAchievements = earnedAchievements.filter(a => a.rarity === rarity);
               
               if (rarityAchievements.length === 0) return null;
@@ -274,10 +274,10 @@ export default function ProgressDashboard() {
               return (
                 <div key={rarity}>
                   <h4 className="font-semibold text-charcoal-800 mb-3 capitalize">
-                    {rarity === 'bronze' && '🥉 Bronze'}
-                    {rarity === 'silver' && '🥈 Silber'}
-                    {rarity === 'gold' && '🥇 Gold'}
-                    {rarity === 'platinum' && '💎 Platin'}
+                    {rarity === 'common' && '🥉 Häufig'}
+                    {rarity === 'rare' && '🥈 Selten'}
+                    {rarity === 'epic' && '🥇 Episch'}
+                    {rarity === 'legendary' && '💎 Legendär'}
                     <span className="ml-2 text-sm font-normal text-charcoal-600">
                       ({rarityAchievements.length})
                     </span>

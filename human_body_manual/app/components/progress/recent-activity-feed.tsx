@@ -136,7 +136,7 @@ export default function RecentActivityFeed({
   }
 
   return (
-    <div className={`organic-card ${mobileOptimized ? 'p-4' : 'p-6'} ${className}`}>
+    <div className={`organic-card ${mobileOptimized ? 'p-4' : 'p-6'} ${className}`} data-testid="recent-activity-feed">
       <div className="flex items-center justify-between mb-4">
         <h3 className={`font-playfair font-semibold ${mobileOptimized ? 'text-base' : 'text-lg'} text-charcoal-900`}>
           📚 Letzte Aktivitäten

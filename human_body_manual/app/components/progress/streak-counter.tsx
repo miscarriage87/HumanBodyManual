@@ -88,6 +88,7 @@ export default function StreakCounter({
       initial="hidden"
       animate="visible"
       className={`organic-card p-6 ${className}`}
+      data-testid="streak-counter"
     >
       <div className="text-center">
         {/* Flame Animation */}

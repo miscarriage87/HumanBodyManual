@@ -172,6 +172,7 @@ export default function BodyAreaProgressCards({
       initial="hidden"
       animate="visible"
       className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 ${className}`}
+      data-testid="body-area-progress-cards"
     >
       {bodyAreaStats.map((stats) => {
         const IconComponent = Icons[getBodyAreaIcon(stats.bodyArea)] as any;

@@ -62,7 +62,7 @@ export default function AchievementBadge({
   };
 
   return (
-    <div className={cn("group relative", className)}>
+    <div className={cn("group relative", className)} data-testid="achievement-badge">
       <motion.div
         whileHover={{ scale: 1.05 }}
         whileTap={{ scale: 0.95 }}
