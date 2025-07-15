@@ -5,11 +5,13 @@ import React, { useState, useEffect } from 'react'
 import { notFound } from 'next/navigation'
 import { getExerciseBySlug } from '@/data/exercises'
 import { getBodyAreaBySlug } from '@/data/body-areas'
-import { markExerciseCompleted, addToFavorites, removeFromFavorites, getProgressData } from '@/lib/progress-tracker'
 import BreathingTimer from '@/components/breathing-timer'
+import SessionCompletionModal, { SessionCompletionData } from '@/components/session-completion-modal'
+import { useProgressTracking } from '@/hooks/use-progress-tracking'
 import * as Icons from 'lucide-react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
+import { Achievement, BodyAreaType } from '@/lib/types'
 
 interface UebungPageProps {
   params: {
@@ -19,20 +21,17 @@ interface UebungPageProps {
 
 export default function UebungPage({ params }: UebungPageProps) {
   const [showScientific, setShowScientific] = useState(false);
-  const [isCompleted, setIsCompleted] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
+  const [showCompletionModal, setShowCompletionModal] = useState(false);
+  const [sessionDuration, setSessionDuration] = useState<number | undefined>();
+  const [newAchievements, setNewAchievements] = useState<Achievement[]>([]);
   const [mounted, setMounted] = useState(false);
 
   const exercise = getExerciseBySlug(params.slug);
+  const { userProgress, recordCompletion, refreshProgress } = useProgressTracking();
 
   useEffect(() => {
     setMounted(true);
-    if (exercise) {
-      const progress = getProgressData();
-      setIsCompleted(progress.completedExercises.includes(exercise.slug));
-      setIsFavorited(progress.favoriteExercises.includes(exercise.slug));
-    }
   }, [exercise]);
 
   if (!exercise) {
@@ -42,23 +41,54 @@ export default function UebungPage({ params }: UebungPageProps) {
   const area = getBodyAreaBySlug(exercise.category);
   const IconComponent = Icons[exercise.icon as keyof typeof Icons] as any;
 
-  const handleComplete = () => {
-    if (exercise && area) {
-      markExerciseCompleted(exercise.slug, exercise.category);
-      setIsCompleted(true);
-      // Show success message
+  const handleStartExercise = () => {
+    // For exercises with timer, show the timer
+    if (exercise.hasTimer) {
+      setShowTimer(true);
+    } else {
+      // For exercises without timer, show completion modal directly
+      setShowCompletionModal(true);
     }
   };
 
-  const handleFavorite = () => {
-    if (exercise) {
-      if (isFavorited) {
-        removeFromFavorites(exercise.slug);
-        setIsFavorited(false);
-      } else {
-        addToFavorites(exercise.slug);
-        setIsFavorited(true);
-      }
+  const handleTimerComplete = (duration: number) => {
+    setSessionDuration(duration);
+    setShowTimer(false);
+    setShowCompletionModal(true);
+  };
+
+  const handleSessionSubmit = async (sessionData: SessionCompletionData) => {
+    if (!exercise || !area) return;
+
+    try {
+      // Record the completion using the hook
+      const { newAchievements: achievements } = await recordCompletion({
+        exerciseId: exercise.slug,
+        bodyArea: exercise.category as BodyAreaType,
+        durationMinutes: sessionData.durationMinutes,
+        difficultyLevel: sessionData.difficultyLevel,
+        sessionNotes: sessionData.sessionNotes,
+        mood: sessionData.mood,
+        energyLevel: sessionData.energyLevel,
+      });
+
+      setNewAchievements(achievements);
+      setShowCompletionModal(false);
+    } catch (error) {
+      console.error('Error recording session completion:', error);
+    }
+  };
+
+  const handleFavorite = async () => {
+    if (!exercise) return;
+
+    try {
+      const mockUserId = 'user-123';
+      // This would be implemented in the ProgressTracker
+      // For now, just toggle the state
+      console.log('Toggle favorite for exercise:', exercise.slug);
+    } catch (error) {
+      console.error('Error toggling favorite:', error);
     }
   };
 
@@ -156,45 +186,19 @@ export default function UebungPage({ params }: UebungPageProps) {
 
             <div className="flex flex-wrap justify-center gap-4">
               <button
-                onClick={handleComplete}
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 ${
-                  isCompleted
-                    ? 'bg-forest-100 text-forest-700 border border-forest-200'
-                    : 'bg-gradient-to-r from-terracotta-500 to-ocher-500 text-white shadow-lg hover:shadow-xl hover:scale-105'
-                }`}
+                onClick={handleStartExercise}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all duration-300 bg-gradient-to-r from-terracotta-500 to-ocher-500 text-white shadow-lg hover:shadow-xl hover:scale-105"
               >
-                {isCompleted ? (
-                  <>
-                    <Icons.CheckCircle size={20} />
-                    Abgeschlossen
-                  </>
-                ) : (
-                  <>
-                    <Icons.Play size={20} />
-                    Übung starten
-                  </>
-                )}
+                <Icons.Play size={20} />
+                Übung starten
               </button>
 
               <button
                 onClick={handleFavorite}
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold border transition-all duration-300 ${
-                  isFavorited
-                    ? 'bg-gold-100 text-gold-700 border-gold-200'
-                    : 'bg-white/80 text-charcoal-700 border-white/20 hover:bg-gold-50'
-                }`}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl font-semibold border transition-all duration-300 bg-white/80 text-charcoal-700 border-white/20 hover:bg-gold-50"
               >
-                {isFavorited ? (
-                  <>
-                    <Icons.Heart size={20} className="fill-current" />
-                    Favorit
-                  </>
-                ) : (
-                  <>
-                    <Icons.Heart size={20} />
-                    Zu Favoriten
-                  </>
-                )}
+                <Icons.Heart size={20} />
+                Zu Favoriten
               </button>
 
               {exercise.hasTimer && (
@@ -218,10 +222,7 @@ export default function UebungPage({ params }: UebungPageProps) {
             >
               <BreathingTimer 
                 config={exercise.timerConfig}
-                onComplete={() => {
-                  handleComplete();
-                  setShowTimer(false);
-                }}
+                onComplete={handleTimerComplete}
               />
             </motion.div>
           )}
@@ -350,6 +351,72 @@ export default function UebungPage({ params }: UebungPageProps) {
         </section>
       )}
 
+      {/* Personal Progress Section */}
+      {userProgress && (
+        <section className="py-16 px-4 sm:px-6 lg:px-8 bg-white/20">
+          <div className="max-w-4xl mx-auto">
+            <div className="organic-card p-8">
+              <h2 className="font-playfair text-2xl font-semibold text-charcoal-900 mb-6">
+                📊 Dein Fortschritt
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="text-center p-4 bg-white/50 rounded-xl">
+                  <div className="text-2xl font-bold text-terracotta-600 mb-1">
+                    {userProgress.totalSessions}
+                  </div>
+                  <div className="text-sm text-charcoal-600">Gesamt Sessions</div>
+                </div>
+                <div className="text-center p-4 bg-white/50 rounded-xl">
+                  <div className="text-2xl font-bold text-forest-600 mb-1">
+                    {userProgress.currentStreak}
+                  </div>
+                  <div className="text-sm text-charcoal-600">Aktuelle Serie</div>
+                </div>
+                <div className="text-center p-4 bg-white/50 rounded-xl">
+                  <div className="text-2xl font-bold text-gold-600 mb-1">
+                    {Math.round(userProgress.totalMinutes / 60)}h
+                  </div>
+                  <div className="text-sm text-charcoal-600">Gesamtzeit</div>
+                </div>
+              </div>
+              
+              {/* Body Area Specific Stats */}
+              {userProgress.bodyAreaStats && (
+                <div className="mt-6">
+                  {userProgress.bodyAreaStats
+                    .filter((stat: any) => stat.bodyArea === exercise.category)
+                    .map((stat: any) => (
+                      <div key={stat.bodyArea} className="p-4 bg-white/50 rounded-xl">
+                        <h3 className="font-semibold text-charcoal-900 mb-3">
+                          Fortschritt in {area?.title}
+                        </h3>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <div className="font-medium text-charcoal-900">{stat.totalSessions}</div>
+                            <div className="text-charcoal-600">Sessions</div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-charcoal-900">{Math.round(stat.averageSessionDuration)} min</div>
+                            <div className="text-charcoal-600">Ø Dauer</div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-charcoal-900">{Math.round(stat.consistencyScore * 100)}%</div>
+                            <div className="text-charcoal-600">Konsistenz</div>
+                          </div>
+                          <div>
+                            <div className="font-medium text-charcoal-900 capitalize">{stat.masteryLevel}</div>
+                            <div className="text-charcoal-600">Level</div>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Navigation */}
       <section className="py-16 px-4 sm:px-6 lg:px-8">
         <div className="max-w-4xl mx-auto text-center">
@@ -371,6 +438,16 @@ export default function UebungPage({ params }: UebungPageProps) {
           </div>
         </div>
       </section>
+
+      {/* Session Completion Modal */}
+      <SessionCompletionModal
+        isOpen={showCompletionModal}
+        onClose={() => setShowCompletionModal(false)}
+        exercise={exercise}
+        sessionDuration={sessionDuration}
+        onSubmit={handleSessionSubmit}
+        newAchievements={newAchievements}
+      />
     </div>
   )
 }

@@ -29,7 +29,7 @@ export class ProgressTracker {
         durationMinutes: exerciseData.durationMinutes,
         difficultyLevel: exerciseData.difficultyLevel,
         sessionNotes: exerciseData.sessionNotes,
-        biometricData: exerciseData.biometricData ? JSON.stringify(exerciseData.biometricData) : null,
+        biometricData: exerciseData.biometricData ? JSON.stringify(exerciseData.biometricData) : undefined,
         mood: exerciseData.mood,
         energyLevel: exerciseData.energyLevel,
       },
@@ -141,7 +141,7 @@ export class ProgressTracker {
         },
         earnedAt: ua.earnedAt,
         progressSnapshot: ua.progressSnapshot as any,
-      })),
+      })) as any,
       weeklyGoal: 7, // Default weekly goal
       weeklyProgress,
       lastActivity: lastActivity?.completedAt || new Date(),

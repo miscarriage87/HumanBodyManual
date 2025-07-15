@@ -12,7 +12,7 @@ interface BreathingTimerProps {
     exhale: number;
     cycles: number;
   };
-  onComplete?: () => void;
+  onComplete?: (sessionDuration: number) => void;
 }
 
 type Phase = 'inhale' | 'hold' | 'exhale' | 'pause';
@@ -23,6 +23,7 @@ export default function BreathingTimer({ config, onComplete }: BreathingTimerPro
   const [currentPhase, setCurrentPhase] = useState<Phase>('inhale');
   const [timeRemaining, setTimeRemaining] = useState(config.inhale);
   const [showSettings, setShowSettings] = useState(false);
+  const [sessionStartTime, setSessionStartTime] = useState<Date | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const totalTime = config.inhale + config.hold + config.exhale;
@@ -58,7 +59,13 @@ export default function BreathingTimer({ config, onComplete }: BreathingTimerPro
           setCurrentCycle(0);
           setCurrentPhase('inhale');
           setTimeRemaining(config.inhale);
-          onComplete?.();
+          
+          // Calculate session duration in minutes
+          const sessionDuration = sessionStartTime 
+            ? Math.round((Date.now() - sessionStartTime.getTime()) / (1000 * 60))
+            : Math.round((config.inhale + config.hold + config.exhale) * config.cycles / 60);
+          
+          onComplete?.(sessionDuration);
         } else {
           // Nächster Zyklus
           setCurrentCycle(nextCycle);
@@ -79,6 +86,9 @@ export default function BreathingTimer({ config, onComplete }: BreathingTimerPro
   }, [isActive, timeRemaining, currentPhase, currentCycle, config, onComplete]);
 
   const handleStart = () => {
+    if (!sessionStartTime) {
+      setSessionStartTime(new Date());
+    }
     setIsActive(true);
   };
 
@@ -91,6 +101,7 @@ export default function BreathingTimer({ config, onComplete }: BreathingTimerPro
     setCurrentCycle(0);
     setCurrentPhase('inhale');
     setTimeRemaining(config.inhale);
+    setSessionStartTime(null);
   };
 
   const getCircleScale = () => {

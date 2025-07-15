@@ -18,7 +18,7 @@ async function main() {
         name: achievement.name,
         description: achievement.description,
         category: achievement.category,
-        criteria: achievement.criteria,
+        criteria: achievement.criteria as any,
         badgeIcon: achievement.badgeIcon,
         points: achievement.points,
         rarity: achievement.rarity,

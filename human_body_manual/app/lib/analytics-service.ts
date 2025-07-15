@@ -54,7 +54,7 @@ export class AnalyticsService {
         data: {
           userId,
           insightType: insight.insightType,
-          content: insight.content,
+          content: insight.content as any,
         },
       });
     }

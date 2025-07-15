@@ -6,13 +6,21 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import * as Icons from 'lucide-react';
 import { Exercise } from '@/data/exercises';
+import { BodyAreaType } from '@/lib/types';
+import { useExerciseProgress } from '@/hooks/use-progress-tracking';
 
 interface ExerciseCardProps {
   exercise: Exercise;
   index?: number;
+  showProgress?: boolean;
 }
 
-export default function ExerciseCard({ exercise, index = 0 }: ExerciseCardProps) {
+export default function ExerciseCard({ exercise, index = 0, showProgress = true }: ExerciseCardProps) {
+  const { exerciseProgress, loading } = useExerciseProgress(
+    exercise.slug, 
+    exercise.category as BodyAreaType
+  );
+  
   const IconComponent = Icons[exercise.icon as keyof typeof Icons] as any;
 
   const getDifficultyColor = (difficulty: Exercise['difficulty']) => {
@@ -112,11 +120,40 @@ export default function ExerciseCard({ exercise, index = 0 }: ExerciseCardProps)
             </div>
           </div>
 
+          {/* Progress Section */}
+          {showProgress && exerciseProgress && !loading && (
+            <div className="mt-4 pt-3 border-t border-charcoal-100">
+              <div className="flex items-center justify-between text-xs text-charcoal-600 mb-2">
+                <span className="font-medium">Dein Fortschritt:</span>
+                {exerciseProgress.isCompleted && (
+                  <Icons.CheckCircle size={14} className="text-green-500" />
+                )}
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-1">
+                  <Icons.RotateCcw size={12} className="text-ocher-500" />
+                  <span>{exerciseProgress.completionCount}x</span>
+                </div>
+                {exerciseProgress.averageDuration > 0 && (
+                  <div className="flex items-center gap-1">
+                    <Icons.Clock size={12} className="text-ocher-500" />
+                    <span>Ø {Math.round(exerciseProgress.averageDuration)}min</span>
+                  </div>
+                )}
+              </div>
+              {exerciseProgress.lastCompleted && (
+                <div className="text-xs text-charcoal-500 mt-1">
+                  Zuletzt: {new Date(exerciseProgress.lastCompleted).toLocaleDateString('de-DE')}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Call to Action */}
           <div className="mt-6 pt-4 border-t border-charcoal-100">
             <div className="flex items-center justify-between">
               <span className="text-sm font-medium text-terracotta-600 group-hover:text-terracotta-700 transition-colors">
-                Übung starten
+                {exerciseProgress?.isCompleted ? 'Erneut üben' : 'Übung starten'}
               </span>
               <Icons.ArrowRight 
                 size={20} 
