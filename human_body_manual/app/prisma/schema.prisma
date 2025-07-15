@@ -200,3 +200,63 @@ model UserCommunityAchievement {
   @@unique([userId, achievementId])
   @@map("user_community_achievements")
 }
+
+// Performance monitoring
+model PerformanceMetric {
+  id         String   @id @default(cuid())
+  metricName String
+  value      Float
+  metadata   Json?
+  timestamp  DateTime @default(now())
+
+  @@index([metricName, timestamp])
+  @@map("performance_metrics")
+}
+
+// User engagement tracking
+model UserEngagementMetric {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  feature   String
+  sessionId String?
+  metadata  Json?
+  timestamp DateTime @default(now())
+
+  @@index([userId, feature, timestamp])
+  @@index([feature, action, timestamp])
+  @@map("user_engagement_metrics")
+}
+
+// System health monitoring
+model SystemHealthMetric {
+  id           String   @id @default(cuid())
+  component    String
+  status       String   // 'healthy', 'warning', 'error'
+  responseTime Float?
+  errorRate    Float?
+  details      Json?
+  timestamp    DateTime @default(now())
+
+  @@index([component, timestamp])
+  @@index([status, timestamp])
+  @@map("system_health_metrics")
+}
+
+// Error tracking
+model ErrorLog {
+  id         String   @id @default(cuid())
+  errorType  String
+  message    String
+  stackTrace String?
+  userId     String?
+  feature    String?
+  metadata   Json?
+  resolved   Boolean  @default(false)
+  timestamp  DateTime @default(now())
+
+  @@index([errorType, timestamp])
+  @@index([feature, timestamp])
+  @@index([resolved, timestamp])
+  @@map("error_logs")
+}
