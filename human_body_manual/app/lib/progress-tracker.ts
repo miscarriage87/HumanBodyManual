@@ -9,12 +9,15 @@ import {
   DifficultyLevel,
   DateRange
 } from './types';
+import { cacheService } from './cache';
+import { QueryOptimizer } from './query-optimizer';
+import { JobScheduler } from './job-queue';
 
 const prisma = new PrismaClient();
 
 export class ProgressTracker {
   /**
-   * Record a completed exercise session
+   * Record a completed exercise session with caching and background job integration
    */
   static async recordCompletion(
     userId: string, 
@@ -38,6 +41,14 @@ export class ProgressTracker {
     // Update streaks after recording completion
     await this.updateStreaks(userId);
 
+    // Invalidate user-related caches
+    await QueryOptimizer.invalidateUserCaches(userId, exerciseData.bodyArea);
+
+    // Schedule background jobs for analytics and insights
+    await JobScheduler.scheduleUserAnalytics(userId);
+    await JobScheduler.scheduleBodyAreaAnalytics(userId, exerciseData.bodyArea);
+    await JobScheduler.scheduleInsightsGeneration(userId);
+
     return {
       id: progressEntry.id,
       userId: progressEntry.userId,
@@ -55,57 +66,32 @@ export class ProgressTracker {
   }
 
   /**
-   * Get comprehensive user progress data
+   * Get comprehensive user progress data with caching optimization
    */
   static async getUserProgress(
     userId: string, 
     timeRange?: DateRange
   ): Promise<UserProgress> {
-    const whereClause: any = { userId };
-    
-    if (timeRange?.from || timeRange?.to) {
-      whereClause.completedAt = {};
-      if (timeRange.from) whereClause.completedAt.gte = timeRange.from;
-      if (timeRange.to) whereClause.completedAt.lte = timeRange.to;
+    // Try to get from cache first
+    const cacheKey = `user_progress_comprehensive:${userId}:${timeRange ? JSON.stringify(timeRange) : 'all'}`;
+    const cached = await cacheService.get<UserProgress>(cacheKey);
+    if (cached) {
+      return cached;
     }
 
-    // Get total sessions and minutes
-    const totalStats = await prisma.userProgress.aggregate({
-      where: whereClause,
-      _count: { id: true },
-      _sum: { durationMinutes: true },
-    });
+    // Use optimized queries
+    const [userStats, streakData, achievements] = await Promise.all([
+      QueryOptimizer.getUserStatsOptimized(userId, timeRange),
+      QueryOptimizer.getStreaksOptimized(userId),
+      QueryOptimizer.getUserAchievementsOptimized(userId),
+    ]);
 
-    // Get current and longest streaks
-    const streakData = await this.getStreakData(userId);
-    const dailyStreak = streakData.find(s => s.streakType === 'daily');
+    const dailyStreak = streakData.streaks.find((s: any) => s.streakType === 'daily');
 
-    // Get body area statistics
+    // Get body area statistics (this could also be optimized)
     const bodyAreaStats = await this.getBodyAreaStats(userId);
 
-    // Get recent achievements (last 30 days)
-    const recentAchievements = await prisma.userAchievement.findMany({
-      where: {
-        userId,
-        earnedAt: {
-          gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // 30 days ago
-        },
-      },
-      include: {
-        achievement: true,
-      },
-      orderBy: { earnedAt: 'desc' },
-      take: 10,
-    });
-
-    // Get last activity
-    const lastActivity = await prisma.userProgress.findFirst({
-      where: { userId },
-      orderBy: { completedAt: 'desc' },
-      select: { completedAt: true },
-    });
-
-    // Calculate weekly progress (assuming goal of 7 sessions per week)
+    // Calculate weekly progress
     const weekStart = new Date();
     weekStart.setDate(weekStart.getDate() - weekStart.getDay());
     weekStart.setHours(0, 0, 0, 0);
@@ -117,14 +103,21 @@ export class ProgressTracker {
       },
     });
 
-    return {
+    // Get last activity
+    const lastActivity = await prisma.userProgress.findFirst({
+      where: { userId },
+      orderBy: { completedAt: 'desc' },
+      select: { completedAt: true },
+    });
+
+    const result: UserProgress = {
       userId,
-      totalSessions: totalStats._count.id || 0,
-      totalMinutes: totalStats._sum.durationMinutes || 0,
+      totalSessions: userStats.totalSessions,
+      totalMinutes: userStats.totalMinutes,
       currentStreak: dailyStreak?.currentCount || 0,
       longestStreak: dailyStreak?.bestCount || 0,
       bodyAreaStats,
-      recentAchievements: recentAchievements.map((ua: any) => ({
+      recentAchievements: achievements.earned.slice(0, 10).map((ua: any) => ({
         id: ua.id,
         userId: ua.userId,
         achievementId: ua.achievementId,
@@ -146,6 +139,11 @@ export class ProgressTracker {
       weeklyProgress,
       lastActivity: lastActivity?.completedAt || new Date(),
     };
+
+    // Cache the result for 15 minutes
+    await cacheService.set(cacheKey, result, 900);
+
+    return result;
   }
 
   /**
