@@ -13,6 +13,7 @@ import CalendarHeatmapComponent from './progress/calendar-heatmap';
 import StreakCounter from './progress/streak-counter';
 import BodyAreaProgressCards from './progress/body-area-progress-cards';
 import RecentActivityFeed from './progress/recent-activity-feed';
+import MobileProgressDashboard from './progress/mobile-progress-dashboard';
 import { BodyAreaStats, ProgressEntry } from '@/lib/types';
 
 // Mock functions for demo purposes
@@ -34,10 +35,21 @@ const checkAchievements = (data: any) => {
 export default function ProgressDashboard() {
   const [progress, setProgress] = useState(getProgressData());
   const [mounted, setMounted] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
 
   useEffect(() => {
     setMounted(true);
     setProgress(getProgressData());
+    
+    // Check if device is mobile
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
   }, []);
 
   if (!mounted) {
@@ -130,6 +142,11 @@ export default function ProgressDashboard() {
   const heatmapData = generateHeatmapData();
   const bodyAreaStats = generateBodyAreaStats();
   const recentActivities = generateRecentActivities();
+
+  // Render mobile-optimized dashboard on mobile devices
+  if (isMobile) {
+    return <MobileProgressDashboard />;
+  }
 
   return (
     <div className="space-y-8">

@@ -11,12 +11,14 @@ interface RecentActivityFeedProps {
   activities: ProgressEntry[];
   maxItems?: number;
   className?: string;
+  mobileOptimized?: boolean;
 }
 
 export default function RecentActivityFeed({ 
   activities, 
   maxItems = 10,
-  className = '' 
+  className = '',
+  mobileOptimized = false
 }: RecentActivityFeedProps) {
   const containerVariants = {
     hidden: { opacity: 0 },
@@ -134,14 +136,16 @@ export default function RecentActivityFeed({
   }
 
   return (
-    <div className={`organic-card p-6 ${className}`}>
-      <div className="flex items-center justify-between mb-6">
-        <h3 className="font-playfair font-semibold text-lg text-charcoal-900">
+    <div className={`organic-card ${mobileOptimized ? 'p-4' : 'p-6'} ${className}`}>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className={`font-playfair font-semibold ${mobileOptimized ? 'text-base' : 'text-lg'} text-charcoal-900`}>
           📚 Letzte Aktivitäten
         </h3>
-        <span className="text-sm text-charcoal-500">
-          {recentActivities.length} von {activities.length}
-        </span>
+        {!mobileOptimized && (
+          <span className="text-sm text-charcoal-500">
+            {recentActivities.length} von {activities.length}
+          </span>
+        )}
       </div>
 
       <motion.div
@@ -162,7 +166,7 @@ export default function RecentActivityFeed({
             <motion.div
               key={activity.id}
               variants={itemVariants}
-              className="flex items-start gap-4 p-4 bg-white/50 rounded-xl border border-white/20 hover:bg-white/70 transition-colors duration-200"
+              className={`flex items-start ${mobileOptimized ? 'gap-3 p-3' : 'gap-4 p-4'} bg-white/50 rounded-xl border border-white/20 hover:bg-white/70 transition-colors duration-200`}
             >
               {/* Icon */}
               <div 
