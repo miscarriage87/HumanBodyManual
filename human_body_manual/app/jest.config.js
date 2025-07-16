@@ -16,6 +16,7 @@ const customJestConfig = {
   ],
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/$1',
+    '^~/(.*)$': '<rootDir>/$1',
   },
   collectCoverageFrom: [
     'lib/**/*.{ts,tsx}',

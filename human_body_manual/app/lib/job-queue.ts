@@ -471,5 +471,4 @@ export class JobScheduler {
   }
 }
 
-// Export queues for monitoring
-export { analyticsQueue, insightsQueue, cacheWarmupQueue };
+// Export queues for monitoring (removed duplicate - already exported above)

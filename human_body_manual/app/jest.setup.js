@@ -59,6 +59,26 @@ const mockPrisma = {
     create: jest.fn(),
     update: jest.fn(),
     delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  userProgress: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findFirst: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({}),
+    update: jest.fn().mockResolvedValue({}),
+    delete: jest.fn().mockResolvedValue({}),
+    count: jest.fn().mockResolvedValue(0),
+    groupBy: jest.fn().mockResolvedValue([]),
+    aggregate: jest.fn().mockResolvedValue({ _sum: { durationMinutes: 0 }, _avg: { durationMinutes: 0 }, _count: { id: 0 } }),
+  },
+  userStreak: {
+    findMany: jest.fn().mockResolvedValue([]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    findFirst: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({}),
+    update: jest.fn().mockResolvedValue({}),
+    delete: jest.fn().mockResolvedValue({}),
+    count: jest.fn().mockResolvedValue(0),
   },
   progressEntry: {
     findMany: jest.fn().mockResolvedValue([]),
@@ -138,7 +158,7 @@ jest.mock('msgpackr', () => ({
 
 // Mock job-queue module
 jest.mock('./lib/job-queue', () => ({
-  progressQueue: {
+  analyticsQueue: {
     add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
     process: jest.fn(),
     on: jest.fn(),
@@ -150,9 +170,16 @@ jest.mock('./lib/job-queue', () => ({
     on: jest.fn(),
     close: jest.fn(),
   },
+  cacheWarmupQueue: {
+    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
+    process: jest.fn(),
+    on: jest.fn(),
+    close: jest.fn(),
+  },
   JobScheduler: {
     scheduleUserAnalytics: jest.fn().mockResolvedValue(undefined),
     scheduleBodyAreaAnalytics: jest.fn().mockResolvedValue(undefined),
+    scheduleCommunityAnalytics: jest.fn().mockResolvedValue(undefined),
     scheduleInsightsGeneration: jest.fn().mockResolvedValue(undefined),
     scheduleCacheWarmup: jest.fn().mockResolvedValue(undefined),
   },
@@ -242,5 +269,111 @@ global.Response = class MockResponse {
 // Mock JobScheduler (already mocked above in job-queue mock)
 // The JobScheduler is part of the job-queue module
 
-// Make mockPrisma available globally for tests
-global.mockPrisma = mockPrisma
+// Mock cache service
+const mockCacheService = {
+  get: jest.fn().mockResolvedValue(null),
+  set: jest.fn().mockResolvedValue(true),
+  setex: jest.fn().mockResolvedValue(true),
+  del: jest.fn().mockResolvedValue(1),
+  deletePattern: jest.fn().mockResolvedValue(1),
+  cacheUserStats: jest.fn().mockResolvedValue(true),
+  cacheBodyAreaStats: jest.fn().mockResolvedValue(true),
+  cacheCommunityStats: jest.fn().mockResolvedValue(true),
+  cacheAchievements: jest.fn().mockResolvedValue(true),
+  cacheStreaks: jest.fn().mockResolvedValue(true),
+  healthCheck: jest.fn().mockResolvedValue({ status: 'healthy' }),
+};
+
+jest.mock('./lib/cache', () => ({
+  cacheService: mockCacheService,
+}));
+
+// Mock auth helpers
+const mockAuthHelpers = {
+  getCurrentUser: jest.fn().mockResolvedValue(null),
+  getDemoUser: jest.fn().mockReturnValue({
+    id: 'demo-user',
+    name: 'Demo User',
+    email: 'demo@example.com',
+  }),
+  requireAuth: jest.fn().mockResolvedValue({
+    id: 'test-user',
+    name: 'Test User',
+    email: 'test@example.com',
+  }),
+};
+
+jest.mock('./lib/auth-helper', () => mockAuthHelpers);
+
+// Mock query optimizer
+const mockQueryOptimizer = {
+  getUserStatsOptimized: jest.fn().mockResolvedValue({
+    totalSessions: 0,
+    totalMinutes: 0,
+    averageSessionDuration: 0,
+    bodyAreaStats: [],
+    recentActivity: [],
+  }),
+  getStreaksOptimized: jest.fn().mockResolvedValue([]),
+  getUserAchievementsOptimized: jest.fn().mockResolvedValue([]),
+  invalidateUserCaches: jest.fn().mockResolvedValue(undefined),
+};
+
+jest.mock('./lib/query-optimizer', () => ({
+  QueryOptimizer: mockQueryOptimizer,
+}));
+
+// Mock ProgressTracker
+const mockProgressTracker = {
+  recordCompletion: jest.fn().mockResolvedValue({}),
+  getUserProgress: jest.fn().mockResolvedValue({
+    userId: 'test-user',
+    totalSessions: 0,
+    totalMinutes: 0,
+    averageSessionDuration: 0,
+    bodyAreaStats: [],
+    recentActivity: [],
+    streaks: [],
+    achievements: [],
+  }),
+  getStreakData: jest.fn().mockResolvedValue([]),
+  getBodyAreaStats: jest.fn().mockResolvedValue([]),
+  getProgressEntries: jest.fn().mockResolvedValue([]),
+  markExerciseCompleted: jest.fn().mockResolvedValue({}),
+  getProgressData: jest.fn().mockResolvedValue({}),
+};
+
+jest.mock('./lib/progress-tracker', () => ({
+  ProgressTracker: mockProgressTracker,
+}));
+
+// Mock AchievementEngine
+const mockAchievementEngine = {
+  checkAchievements: jest.fn().mockResolvedValue([]),
+  getUserAchievements: jest.fn().mockResolvedValue([]),
+  calculateProgress: jest.fn().mockResolvedValue({}),
+  getAllAchievementsWithProgress: jest.fn().mockResolvedValue([]),
+  getAchievementStats: jest.fn().mockResolvedValue({}),
+};
+
+jest.mock('./lib/achievement-engine', () => ({
+  AchievementEngine: mockAchievementEngine,
+}));
+
+// Mock validation schemas
+const mockValidationSchemas = {
+  validateExerciseCompletion: jest.fn().mockReturnValue({}),
+  validateDateRange: jest.fn().mockReturnValue({}),
+  validateUserInput: jest.fn().mockReturnValue({}),
+};
+
+jest.mock('./lib/validation-schemas', () => mockValidationSchemas);
+
+// Make mocks available globally for tests
+global.mockPrisma = mockPrisma;
+global.mockCacheService = mockCacheService;
+global.mockAuthHelpers = mockAuthHelpers;
+global.mockQueryOptimizer = mockQueryOptimizer;
+global.mockProgressTracker = mockProgressTracker;
+global.mockAchievementEngine = mockAchievementEngine;
+global.mockValidationSchemas = mockValidationSchemas;
