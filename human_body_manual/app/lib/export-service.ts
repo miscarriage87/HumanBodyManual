@@ -5,6 +5,22 @@ export class ExportService {
   /**
    * Generate comprehensive data export for a user
    */
+  static async generateUserDataExport(request: DataExportRequest): Promise<string> {
+    const service = new ExportService();
+    return service.generateUserDataExport(request);
+  }
+
+  /**
+   * Delete all user data (for account deletion)
+   */
+  static async deleteAllUserData(userId: string): Promise<void> {
+    const service = new ExportService();
+    return service.deleteAllUserData(userId);
+  }
+
+  /**
+   * Generate comprehensive data export for a user (instance method)
+   */
   async generateUserDataExport(request: DataExportRequest): Promise<string> {
     const { userId, format, dateRange, includeAchievements, includeBiometrics, includeInsights } = request;
 

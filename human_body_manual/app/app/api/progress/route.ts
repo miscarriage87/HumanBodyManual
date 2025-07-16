@@ -35,9 +35,15 @@ export async function GET(request: NextRequest) {
       timeRange
     );
 
+    // Serialize dates properly
+    const serializedProgress = {
+      ...userProgress,
+      lastActivity: userProgress.lastActivity.toISOString(),
+    };
+
     return NextResponse.json({
       success: true,
-      data: userProgress,
+      data: serializedProgress,
     });
 
   } catch (error) {

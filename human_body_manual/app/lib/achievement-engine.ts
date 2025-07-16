@@ -68,7 +68,7 @@ export class AchievementEngine {
       return newAchievements;
     } catch (error) {
       console.error('Error checking achievements:', error);
-      throw error;
+      return []; // Return empty array on error instead of throwing
     }
   }
 
@@ -76,30 +76,35 @@ export class AchievementEngine {
    * Get all achievements earned by a user
    */
   static async getUserAchievements(userId: string): Promise<UserAchievement[]> {
-    const userAchievements = await prisma.userAchievement.findMany({
-      where: { userId },
-      include: { achievement: true },
-      orderBy: { earnedAt: 'desc' },
-    });
+    try {
+      const userAchievements = await prisma.userAchievement.findMany({
+        where: { userId },
+        include: { achievement: true },
+        orderBy: { earnedAt: 'desc' },
+      });
 
-    return userAchievements.map((ua: any) => ({
-      id: ua.id,
-      userId: ua.userId,
-      achievementId: ua.achievementId,
-      achievement: {
-        id: ua.achievement.id,
-        name: ua.achievement.name,
-        description: ua.achievement.description,
-        category: ua.achievement.category as any,
-        criteria: ua.achievement.criteria as any,
-        badgeIcon: ua.achievement.badgeIcon || '',
-        points: ua.achievement.points,
-        rarity: ua.achievement.rarity as any,
-        createdAt: ua.achievement.createdAt,
-      },
-      earnedAt: ua.earnedAt,
-      progressSnapshot: ua.progressSnapshot as any,
-    }));
+      return userAchievements.map((ua: any) => ({
+        id: ua.id,
+        userId: ua.userId,
+        achievementId: ua.achievementId,
+        achievement: {
+          id: ua.achievement.id,
+          name: ua.achievement.name,
+          description: ua.achievement.description,
+          category: ua.achievement.category as any,
+          criteria: ua.achievement.criteria as any,
+          badgeIcon: ua.achievement.badgeIcon || '',
+          points: ua.achievement.points,
+          rarity: ua.achievement.rarity as any,
+          createdAt: ua.achievement.createdAt,
+        },
+        earnedAt: ua.earnedAt,
+        progressSnapshot: ua.progressSnapshot as any,
+      }));
+    } catch (error) {
+      console.error('Error getting user achievements:', error);
+      return [];
+    }
   }
 
   /**
@@ -109,65 +114,80 @@ export class AchievementEngine {
     userId: string, 
     achievementId: string
   ): Promise<AchievementProgress> {
-    const achievement = await prisma.achievement.findUnique({
-      where: { id: achievementId },
-    });
+    try {
+      const achievement = await prisma.achievement.findUnique({
+        where: { id: achievementId },
+      });
 
-    if (!achievement) {
-      throw new Error('Achievement not found');
-    }
+      if (!achievement) {
+        throw new Error('Achievement not found');
+      }
 
-    const criteria = achievement.criteria as any;
-    const currentProgress = await this.getCurrentProgressForCriteria(userId, criteria);
-    const targetProgress = criteria.target;
-    const progressPercentage = Math.min((currentProgress / targetProgress) * 100, 100);
+      const criteria = achievement.criteria as any;
+      const currentProgress = await this.getCurrentProgressForCriteria(userId, criteria);
+      const targetProgress = criteria.target;
+      const progressPercentage = Math.min((currentProgress / targetProgress) * 100, 100);
 
-    // Check if already completed
-    const isCompleted = await prisma.userAchievement.findUnique({
-      where: {
-        userId_achievementId: {
-          userId,
-          achievementId,
+      // Check if already completed
+      const isCompleted = await prisma.userAchievement.findUnique({
+        where: {
+          userId_achievementId: {
+            userId,
+            achievementId,
+          },
         },
-      },
-    });
+      });
 
-    return {
-      achievementId,
-      achievement: {
-        id: achievement.id,
-        name: achievement.name,
-        description: achievement.description,
-        category: achievement.category as any,
-        criteria: achievement.criteria as any,
-        badgeIcon: achievement.badgeIcon || '',
-        points: achievement.points,
-        rarity: achievement.rarity as any,
-        createdAt: achievement.createdAt,
-      },
-      currentProgress,
-      targetProgress,
-      progressPercentage,
-      isCompleted: !!isCompleted,
-    };
+      return {
+        achievementId,
+        achievement: {
+          id: achievement.id,
+          name: achievement.name,
+          description: achievement.description,
+          category: achievement.category as any,
+          criteria: achievement.criteria as any,
+          badgeIcon: achievement.badgeIcon || '',
+          points: achievement.points,
+          rarity: achievement.rarity as any,
+          createdAt: achievement.createdAt,
+        },
+        currentProgress,
+        targetProgress,
+        progressPercentage,
+        isCompleted: !!isCompleted,
+      };
+    } catch (error) {
+      console.error('Error calculating achievement progress:', error);
+      throw error;
+    }
   }
 
   /**
    * Get all available achievements with progress
    */
   static async getAllAchievementsWithProgress(userId: string): Promise<AchievementProgress[]> {
-    const achievements = await prisma.achievement.findMany({
-      orderBy: [{ category: 'asc' }, { points: 'asc' }],
-    });
+    try {
+      const achievements = await prisma.achievement.findMany({
+        orderBy: [{ category: 'asc' }, { points: 'asc' }],
+      });
 
-    const progressList: AchievementProgress[] = [];
+      const progressList: AchievementProgress[] = [];
 
-    for (const achievement of achievements) {
-      const progress = await this.calculateProgress(userId, achievement.id);
-      progressList.push(progress);
+      for (const achievement of achievements) {
+        try {
+          const progress = await this.calculateProgress(userId, achievement.id);
+          progressList.push(progress);
+        } catch (error) {
+          console.warn(`Error calculating progress for achievement ${achievement.id}:`, error);
+          // Continue with other achievements
+        }
+      }
+
+      return progressList;
+    } catch (error) {
+      console.error('Error getting achievements with progress:', error);
+      return [];
     }
-
-    return progressList;
   }
 
   /**
@@ -333,55 +353,65 @@ export class AchievementEngine {
     mostEarnedAchievement: { name: string; count: number } | null;
     rareAchievements: { name: string; count: number }[];
   }> {
-    const totalAchievements = await prisma.achievement.count();
-    const totalAwarded = await prisma.userAchievement.count();
+    try {
+      const totalAchievements = await prisma.achievement.count();
+      const totalAwarded = await prisma.userAchievement.count();
 
-    // Most earned achievement
-    const achievementCounts = await prisma.userAchievement.groupBy({
-      by: ['achievementId'],
-      _count: { achievementId: true },
-      orderBy: { _count: { achievementId: 'desc' } },
-      take: 1,
-    });
-
-    let mostEarnedAchievement = null;
-    if (achievementCounts.length > 0) {
-      const achievement = await prisma.achievement.findUnique({
-        where: { id: achievementCounts[0].achievementId },
+      // Most earned achievement
+      const achievementCounts = await prisma.userAchievement.groupBy({
+        by: ['achievementId'],
+        _count: { achievementId: true },
+        orderBy: { _count: { achievementId: 'desc' } },
+        take: 1,
       });
-      if (achievement) {
-        mostEarnedAchievement = {
-          name: achievement.name,
-          count: achievementCounts[0]._count.achievementId,
-        };
-      }
-    }
 
-    // Rare achievements (epic and legendary with low earn rates)
-    const rareAchievementCounts = await prisma.userAchievement.groupBy({
-      by: ['achievementId'],
-      _count: { achievementId: true },
-      having: { achievementId: { _count: { lt: 10 } } }, // Less than 10 people earned it
-    });
-
-    const rareAchievements = [];
-    for (const rare of rareAchievementCounts) {
-      const achievement = await prisma.achievement.findUnique({
-        where: { id: rare.achievementId },
-      });
-      if (achievement && (achievement.rarity === 'epic' || achievement.rarity === 'legendary')) {
-        rareAchievements.push({
-          name: achievement.name,
-          count: rare._count.achievementId,
+      let mostEarnedAchievement = null;
+      if (achievementCounts.length > 0) {
+        const achievement = await prisma.achievement.findUnique({
+          where: { id: achievementCounts[0].achievementId },
         });
+        if (achievement) {
+          mostEarnedAchievement = {
+            name: achievement.name,
+            count: achievementCounts[0]._count.achievementId,
+          };
+        }
       }
-    }
 
-    return {
-      totalAchievements,
-      totalAwarded,
-      mostEarnedAchievement,
-      rareAchievements,
-    };
+      // Rare achievements (epic and legendary with low earn rates)
+      const rareAchievementCounts = await prisma.userAchievement.groupBy({
+        by: ['achievementId'],
+        _count: { achievementId: true },
+        having: { achievementId: { _count: { lt: 10 } } }, // Less than 10 people earned it
+      });
+
+      const rareAchievements = [];
+      for (const rare of rareAchievementCounts) {
+        const achievement = await prisma.achievement.findUnique({
+          where: { id: rare.achievementId },
+        });
+        if (achievement && (achievement.rarity === 'epic' || achievement.rarity === 'legendary')) {
+          rareAchievements.push({
+            name: achievement.name,
+            count: rare._count.achievementId,
+          });
+        }
+      }
+
+      return {
+        totalAchievements,
+        totalAwarded,
+        mostEarnedAchievement,
+        rareAchievements,
+      };
+    } catch (error) {
+      console.error('Error getting achievement stats:', error);
+      return {
+        totalAchievements: 0,
+        totalAwarded: 0,
+        mostEarnedAchievement: null,
+        rareAchievements: [],
+      };
+    }
   }
 }
