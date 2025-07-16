@@ -1,8 +1,39 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { NextRequest } from 'next/server';
 import { GET as getProgress, OPTIONS as optionsProgress } from '../app/api/progress/route';
 import { POST as recordProgress, OPTIONS as optionsRecord } from '../app/api/progress/record/route';
 import { GET as getAchievements } from '../app/api/achievements/route';
+
+// Mock NextRequest
+class MockNextRequest {
+  public url: string;
+  public method: string;
+  public headers: Map<string, string>;
+  private _body: string | null;
+
+  constructor(url: string, init?: { method?: string; body?: string; headers?: Record<string, string> }) {
+    this.url = url;
+    this.method = init?.method || 'GET';
+    this.headers = new Map();
+    this._body = init?.body || null;
+    
+    if (init?.headers) {
+      Object.entries(init.headers).forEach(([key, value]) => {
+        this.headers.set(key, value);
+      });
+    }
+  }
+
+  async json() {
+    if (!this._body) {
+      throw new Error('No body');
+    }
+    return JSON.parse(this._body);
+  }
+
+  nextUrl = {
+    searchParams: new URLSearchParams(typeof this.url === 'string' && this.url.includes('?') ? this.url.split('?')[1] : ''),
+  };
+}
 
 // Mock the dependencies
 jest.mock('../lib/progress-tracker', () => ({
@@ -29,10 +60,10 @@ jest.mock('../lib/validation-schemas', () => ({
   validateExerciseCompletion: jest.fn(),
 }));
 
-const { ProgressTracker } = require('../lib/progress-tracker');
-const { AchievementEngine } = require('../lib/achievement-engine');
-const { getCurrentUser, getDemoUser } = require('../lib/auth-helper');
-const { validateDateRange, validateExerciseCompletion } = require('../lib/validation-schemas');
+import { ProgressTracker } from '../lib/progress-tracker';
+import { AchievementEngine } from '../lib/achievement-engine';
+import { getCurrentUser, getDemoUser } from '../lib/auth-helper';
+import { validateDateRange, validateExerciseCompletion } from '../lib/validation-schemas';
 
 describe('API Integration Tests', () => {
   const mockUser = {
@@ -64,7 +95,7 @@ describe('API Integration Tests', () => {
 
       ProgressTracker.getUserProgress.mockResolvedValue(mockUserProgress);
 
-      const request = new NextRequest('http://localhost:3000/api/progress');
+      const request = new MockNextRequest('http://localhost:3000/api/progress');
       const response = await getProgress(request);
       const data = await response.json();
 
@@ -95,7 +126,7 @@ describe('API Integration Tests', () => {
       });
 
       const url = 'http://localhost:3000/api/progress?from=2024-01-01&to=2024-01-31';
-      const request = new NextRequest(url);
+      const request = new MockNextRequest(url) as any;
       const response = await getProgress(request);
 
       expect(response.status).toBe(200);
@@ -110,7 +141,7 @@ describe('API Integration Tests', () => {
       getCurrentUser.mockResolvedValue(null);
       getDemoUser.mockReturnValue(null);
 
-      const request = new NextRequest('http://localhost:3000/api/progress');
+      const request = new MockNextRequest('http://localhost:3000/api/progress');
       const response = await getProgress(request);
       const data = await response.json();
 
@@ -124,7 +155,7 @@ describe('API Integration Tests', () => {
       });
 
       const url = 'http://localhost:3000/api/progress?from=invalid-date';
-      const request = new NextRequest(url);
+      const request = new MockNextRequest(url) as any;
       const response = await getProgress(request);
       const data = await response.json();
 
@@ -136,7 +167,7 @@ describe('API Integration Tests', () => {
     it('should handle internal server errors', async () => {
       ProgressTracker.getUserProgress.mockRejectedValue(new Error('Database connection failed'));
 
-      const request = new NextRequest('http://localhost:3000/api/progress');
+      const request = new MockNextRequest('http://localhost:3000/api/progress');
       const response = await getProgress(request);
       const data = await response.json();
 
@@ -183,7 +214,7 @@ describe('API Integration Tests', () => {
       ProgressTracker.recordCompletion.mockResolvedValue(mockProgressEntry);
       AchievementEngine.checkAchievements.mockResolvedValue([]);
 
-      const request = new NextRequest('http://localhost:3000/api/progress/record', {
+      const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
         body: JSON.stringify({
           exerciseCompletion: mockExerciseCompletion,
@@ -225,7 +256,7 @@ describe('API Integration Tests', () => {
       ProgressTracker.recordCompletion.mockResolvedValue(mockProgressEntry);
       AchievementEngine.checkAchievements.mockResolvedValue(mockNewAchievements);
 
-      const request = new NextRequest('http://localhost:3000/api/progress/record', {
+      const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
         body: JSON.stringify({
           exerciseCompletion: mockExerciseCompletion,
@@ -246,7 +277,7 @@ describe('API Integration Tests', () => {
       getCurrentUser.mockResolvedValue(null);
       getDemoUser.mockReturnValue(null);
 
-      const request = new NextRequest('http://localhost:3000/api/progress/record', {
+      const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
         body: JSON.stringify({
           exerciseCompletion: mockExerciseCompletion,
@@ -268,7 +299,7 @@ describe('API Integration Tests', () => {
         throw new Error('validation: Missing required field exerciseId');
       });
 
-      const request = new NextRequest('http://localhost:3000/api/progress/record', {
+      const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
         body: JSON.stringify({
           exerciseCompletion: { bodyArea: 'nervensystem' }, // Missing exerciseId
@@ -276,7 +307,7 @@ describe('API Integration Tests', () => {
         headers: {
           'Content-Type': 'application/json',
         },
-      });
+      }) as any;
 
       const response = await recordProgress(request);
       const data = await response.json();
@@ -287,13 +318,13 @@ describe('API Integration Tests', () => {
     });
 
     it('should handle malformed JSON', async () => {
-      const request = new NextRequest('http://localhost:3000/api/progress/record', {
+      const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
         body: 'invalid json',
         headers: {
           'Content-Type': 'application/json',
         },
-      });
+      }) as any;
 
       const response = await recordProgress(request);
       const data = await response.json();
@@ -306,7 +337,7 @@ describe('API Integration Tests', () => {
       validateExerciseCompletion.mockReturnValue(mockExerciseCompletion);
       ProgressTracker.recordCompletion.mockRejectedValue(new Error('Database connection failed'));
 
-      const request = new NextRequest('http://localhost:3000/api/progress/record', {
+      const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
         body: JSON.stringify({
           exerciseCompletion: mockExerciseCompletion,
@@ -357,7 +388,7 @@ describe('API Integration Tests', () => {
 
       AchievementEngine.getUserAchievements.mockResolvedValue(mockUserAchievements);
 
-      const request = new NextRequest('http://localhost:3000/api/achievements');
+      const request = new MockNextRequest('http://localhost:3000/api/achievements');
       const response = await getAchievements(request);
       const data = await response.json();
 
@@ -371,7 +402,7 @@ describe('API Integration Tests', () => {
       getCurrentUser.mockResolvedValue(null);
       getDemoUser.mockReturnValue(null);
 
-      const request = new NextRequest('http://localhost:3000/api/achievements');
+      const request = new MockNextRequest('http://localhost:3000/api/achievements');
       const response = await getAchievements(request);
       const data = await response.json();
 
@@ -382,7 +413,7 @@ describe('API Integration Tests', () => {
     it('should handle database errors', async () => {
       AchievementEngine.getUserAchievements.mockRejectedValue(new Error('Database error'));
 
-      const request = new NextRequest('http://localhost:3000/api/achievements');
+      const request = new MockNextRequest('http://localhost:3000/api/achievements');
       const response = await getAchievements(request);
       const data = await response.json();
 
@@ -393,6 +424,13 @@ describe('API Integration Tests', () => {
 
   describe('Error handling and edge cases', () => {
     it('should handle concurrent requests properly', async () => {
+      const mockExerciseCompletion = {
+        exerciseId: 'breathing-basics',
+        bodyArea: 'nervensystem',
+        durationMinutes: 15,
+        difficultyLevel: 'Anfänger',
+      };
+
       const mockProgressEntry = {
         id: 'progress-123',
         userId: mockUser.id,
@@ -410,7 +448,7 @@ describe('API Integration Tests', () => {
 
       // Create multiple concurrent requests
       const requests = Array.from({ length: 5 }, () =>
-        new NextRequest('http://localhost:3000/api/progress/record', {
+        new MockNextRequest('http://localhost:3000/api/progress/record', {
           method: 'POST',
           body: JSON.stringify({
             exerciseCompletion: mockExerciseCompletion,
@@ -418,7 +456,7 @@ describe('API Integration Tests', () => {
           headers: {
             'Content-Type': 'application/json',
           },
-        })
+        }) as any
       );
 
       const responses = await Promise.all(
@@ -437,6 +475,13 @@ describe('API Integration Tests', () => {
     });
 
     it('should handle large payloads', async () => {
+      const mockExerciseCompletion = {
+        exerciseId: 'breathing-basics',
+        bodyArea: 'nervensystem',
+        durationMinutes: 15,
+        difficultyLevel: 'Anfänger',
+      };
+
       const largeExerciseCompletion = {
         ...mockExerciseCompletion,
         sessionNotes: 'A'.repeat(10000), // Large session notes
@@ -451,6 +496,17 @@ describe('API Integration Tests', () => {
       };
 
       validateExerciseCompletion.mockReturnValue(largeExerciseCompletion);
+      const mockProgressEntry = {
+        id: 'progress-123',
+        userId: mockUser.id,
+        exerciseId: 'breathing-basics',
+        bodyArea: 'nervensystem',
+        completedAt: new Date(),
+        durationMinutes: 15,
+        difficultyLevel: 'Anfänger',
+        createdAt: new Date(),
+      };
+
       ProgressTracker.recordCompletion.mockResolvedValue({
         ...mockProgressEntry,
         sessionNotes: largeExerciseCompletion.sessionNotes,
@@ -458,7 +514,7 @@ describe('API Integration Tests', () => {
       });
       AchievementEngine.checkAchievements.mockResolvedValue([]);
 
-      const request = new NextRequest('http://localhost:3000/api/progress/record', {
+      const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
         body: JSON.stringify({
           exerciseCompletion: largeExerciseCompletion,
@@ -466,7 +522,7 @@ describe('API Integration Tests', () => {
         headers: {
           'Content-Type': 'application/json',
         },
-      });
+      }) as any;
 
       const response = await recordProgress(request);
       const data = await response.json();
@@ -477,12 +533,12 @@ describe('API Integration Tests', () => {
     });
 
     it('should handle missing request body', async () => {
-      const request = new NextRequest('http://localhost:3000/api/progress/record', {
+      const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-      });
+      }) as any;
 
       const response = await recordProgress(request);
       const data = await response.json();
@@ -497,7 +553,7 @@ describe('API Integration Tests', () => {
         new Promise((resolve) => setTimeout(resolve, 30000)) // 30 second timeout
       );
 
-      const request = new NextRequest('http://localhost:3000/api/progress');
+      const request = new MockNextRequest('http://localhost:3000/api/progress');
       
       // This test would need to be implemented with actual timeout handling
       // For now, we'll just verify the mock is set up correctly
@@ -525,7 +581,7 @@ describe('API Integration Tests', () => {
         lastActivity: new Date(),
       });
 
-      const request = new NextRequest('http://localhost:3000/api/progress');
+      const request = new MockNextRequest('http://localhost:3000/api/progress');
       await getProgress(request);
 
       expect(ProgressTracker.getUserProgress).toHaveBeenCalledWith(realUser.id, undefined);
@@ -549,7 +605,7 @@ describe('API Integration Tests', () => {
         lastActivity: new Date(),
       });
 
-      const request = new NextRequest('http://localhost:3000/api/progress');
+      const request = new MockNextRequest('http://localhost:3000/api/progress');
       await getProgress(request);
 
       expect(ProgressTracker.getUserProgress).toHaveBeenCalledWith(demoUser.id, undefined);

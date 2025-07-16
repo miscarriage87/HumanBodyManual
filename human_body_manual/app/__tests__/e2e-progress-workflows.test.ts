@@ -6,7 +6,7 @@ import { ExportService } from '../lib/export-service';
 import { ExerciseCompletion, BodyAreaType, DifficultyLevel } from '../lib/types';
 
 // Mock all dependencies
-jest.mock('../lib/db', () => ({
+jest.mock('../lib/prisma', () => ({
   prisma: {
     userProgress: {
       create: jest.fn(),
@@ -81,10 +81,10 @@ jest.mock('../lib/job-queue', () => ({
   },
 }));
 
-const { prisma } = require('../lib/db');
-const { cacheService } = require('../lib/cache');
-const { QueryOptimizer } = require('../lib/query-optimizer');
-const { JobScheduler } = require('../lib/job-queue');
+import { prisma } from '../lib/prisma';
+import { cacheService } from '../lib/cache';
+import { QueryOptimizer } from '../lib/query-optimizer';
+import { JobScheduler } from '../lib/job-queue';
 
 describe('End-to-End Progress Tracking Workflows', () => {
   const mockUserId = 'test-user-123';

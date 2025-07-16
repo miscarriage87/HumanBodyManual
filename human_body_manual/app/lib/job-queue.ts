@@ -1,5 +1,5 @@
 import Bull from 'bull';
-import { prisma } from './db';
+import { prisma } from './prisma';
 import { cacheService } from './cache';
 
 // Job queue configuration

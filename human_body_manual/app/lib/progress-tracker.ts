@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { 
   ProgressEntry, 
   ExerciseCompletion, 
@@ -9,11 +8,10 @@ import {
   DifficultyLevel,
   DateRange
 } from './types';
+import { prisma } from './prisma';
 import { cacheService } from './cache';
 import { QueryOptimizer } from './query-optimizer';
 import { JobScheduler } from './job-queue';
-
-const prisma = new PrismaClient();
 
 export class ProgressTracker {
   /**
