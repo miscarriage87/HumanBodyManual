@@ -108,9 +108,28 @@ describe('ExportService', () => {
       const result = await exportService.generateUserDataExport(request);
       const parsedResult = JSON.parse(result);
 
-      expect(parsedResult.user).toEqual(mockUserData);
-      expect(parsedResult.progressData).toEqual(mockProgressData);
-      expect(parsedResult.streakData).toEqual(mockStreakData);
+      // Handle date serialization - JSON.stringify converts dates to strings
+      const expectedUserData = {
+        ...mockUserData,
+        createdAt: mockUserData.createdAt.toISOString(),
+        updatedAt: mockUserData.updatedAt.toISOString(),
+      };
+      
+      const expectedProgressData = mockProgressData.map(item => ({
+        ...item,
+        completedAt: item.completedAt.toISOString(),
+      }));
+      
+      const expectedStreakData = mockStreakData.map(item => ({
+        ...item,
+        lastActivityDate: item.lastActivityDate.toISOString(),
+        startedAt: item.startedAt.toISOString(),
+        updatedAt: item.updatedAt.toISOString(),
+      }));
+      
+      expect(parsedResult.user).toEqual(expectedUserData);
+      expect(parsedResult.progressData).toEqual(expectedProgressData);
+      expect(parsedResult.streakData).toEqual(expectedStreakData);
       expect(parsedResult.exportMetadata).toBeDefined();
       expect(parsedResult.exportMetadata.totalRecords).toBe(1);
     });

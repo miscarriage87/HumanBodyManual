@@ -29,7 +29,7 @@ const customJestConfig = {
     '^.+\\.(js|jsx|ts|tsx)$': ['babel-jest', { presets: ['next/babel'] }],
   },
   transformIgnorePatterns: [
-    '/node_modules/',
+    '/node_modules/(?!(bull|msgpackr|ioredis)/)',
     '^.+\\.module\\.(css|sass|scss)$',
   ],
 }

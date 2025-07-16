@@ -263,7 +263,7 @@ export class MonitoringService {
   async getProgressTrackingMetrics(timeRange: { start: Date; end: Date }): Promise<ProgressTrackingMetrics> {
     try {
       // Total progress entries
-      const totalProgressEntries = await this.prisma.userProgress.count({
+      const totalProgressEntries = await this.prisma.progressEntry.count({
         where: {
           completedAt: {
             gte: timeRange.start,
@@ -273,7 +273,7 @@ export class MonitoringService {
       });
 
       // Average session duration
-      const sessionDurations = await this.prisma.userProgress.aggregate({
+      const sessionDurations = await this.prisma.progressEntry.aggregate({
         where: {
           completedAt: {
             gte: timeRange.start,
@@ -296,7 +296,7 @@ export class MonitoringService {
         },
       });
 
-      const uniqueUsersWithProgress = await this.prisma.userProgress.findMany({
+      const uniqueUsersWithProgress = await this.prisma.progressEntry.findMany({
         where: {
           completedAt: {
             gte: timeRange.start,
@@ -312,7 +312,7 @@ export class MonitoringService {
         : 0;
 
       // Streak retention rate (users who maintained streaks)
-      const activeStreaks = await this.prisma.userStreak.count({
+      const activeStreaks = await this.prisma.streak.count({
         where: {
           currentCount: { gt: 0 },
           lastActivityDate: {
