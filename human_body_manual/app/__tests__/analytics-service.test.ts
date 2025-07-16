@@ -3,14 +3,14 @@ import { AnalyticsService } from '../lib/analytics-service';
 import { DateRange, BodyAreaType } from '../lib/types';
 
 // Mock Prisma
-jest.mock('../lib/db', () => ({
+jest.mock('../lib/prisma', () => ({
   prisma: {
-    userProgress: {
+    progressEntry: {
       findMany: jest.fn(),
       count: jest.fn(),
       groupBy: jest.fn(),
     },
-    userStreak: {
+    streak: {
       findUnique: jest.fn(),
     },
     userInsight: {
@@ -21,7 +21,7 @@ jest.mock('../lib/db', () => ({
   },
 }));
 
-const { prisma } = require('../lib/db');
+const { prisma } = require('../lib/prisma');
 
 describe('AnalyticsService', () => {
   const mockUserId = 'test-user-123';
@@ -46,7 +46,7 @@ describe('AnalyticsService', () => {
         p.completedAt.setDate(p.completedAt.getDate() - i);
       });
 
-      prisma.userProgress.findMany
+      prisma.progressEntry.findMany
         .mockResolvedValueOnce(mockRecentProgress) // Recent progress
         .mockResolvedValueOnce(mockRecentProgress); // All progress
 
@@ -80,7 +80,7 @@ describe('AnalyticsService', () => {
         difficultyLevel: 'Anfänger', // Same level for all sessions
       }));
 
-      prisma.userProgress.findMany
+      prisma.progressEntry.findMany
         .mockResolvedValueOnce(mockRecentProgress) // Recent progress
         .mockResolvedValueOnce(mockRecentProgress); // All progress
 
@@ -103,11 +103,11 @@ describe('AnalyticsService', () => {
 
     it('should generate motivation insights for inactive users', async () => {
       // No recent progress
-      prisma.userProgress.findMany
+      prisma.progressEntry.findMany
         .mockResolvedValueOnce([]) // Recent progress (empty)
         .mockResolvedValueOnce([]); // All progress (empty)
 
-      prisma.userStreak.findUnique.mockResolvedValue(null);
+      prisma.streak.findUnique.mockResolvedValue(null);
 
       prisma.userInsight.create.mockResolvedValue({
         id: 'insight-motivation',
@@ -135,7 +135,7 @@ describe('AnalyticsService', () => {
         difficultyLevel: 'Anfänger',
       }));
 
-      prisma.userProgress.findMany
+      prisma.progressEntry.findMany
         .mockResolvedValueOnce(mockAllProgress.slice(0, 10)) // Recent progress
         .mockResolvedValueOnce(mockAllProgress); // All progress
 
@@ -167,11 +167,11 @@ describe('AnalyticsService', () => {
         },
       ];
 
-      prisma.userProgress.findMany
+      prisma.progressEntry.findMany
         .mockResolvedValueOnce(mockMinimalProgress) // Recent progress
         .mockResolvedValueOnce(mockMinimalProgress); // All progress
 
-      prisma.userStreak.findUnique.mockResolvedValue(null);
+      prisma.streak.findUnique.mockResolvedValue(null);
 
       const result = await AnalyticsService.generateInsights(mockUserId);
 
@@ -206,7 +206,7 @@ describe('AnalyticsService', () => {
         },
       ];
 
-      prisma.userProgress.groupBy.mockResolvedValue(mockDailyProgress);
+      prisma.progressEntry.groupBy.mockResolvedValue(mockDailyProgress);
 
       const result = await AnalyticsService.getProgressTrends(mockUserId, timeRange);
 
@@ -217,7 +217,7 @@ describe('AnalyticsService', () => {
       expect(result.dataPoints[2].value).toBe(1); // Jan 3rd
       expect(result.dataPoints[4].value).toBe(3); // Jan 5th
 
-      expect(result.trend).toBeOneOf(['increasing', 'decreasing', 'stable']);
+      expect(['increasing', 'decreasing', 'stable']).toContain(result.trend);
       expect(typeof result.changePercentage).toBe('number');
     });
 
@@ -236,7 +236,7 @@ describe('AnalyticsService', () => {
         { completedAt: new Date('2024-01-08'), _count: { id: 4 } },
       ];
 
-      prisma.userProgress.groupBy.mockResolvedValue(mockIncreasingProgress);
+      prisma.progressEntry.groupBy.mockResolvedValue(mockIncreasingProgress);
 
       const result = await AnalyticsService.getProgressTrends(mockUserId, timeRange);
 
@@ -258,7 +258,7 @@ describe('AnalyticsService', () => {
           to: new Date(),
         };
 
-        prisma.userProgress.groupBy.mockResolvedValue([]);
+        prisma.progressEntry.groupBy.mockResolvedValue([]);
 
         const result = await AnalyticsService.getProgressTrends(mockUserId, timeRange);
 
@@ -272,7 +272,7 @@ describe('AnalyticsService', () => {
         to: new Date('2024-01-07'), // Sunday
       };
 
-      prisma.userProgress.groupBy.mockResolvedValue([]);
+      prisma.progressEntry.groupBy.mockResolvedValue([]);
 
       const result = await AnalyticsService.getProgressTrends(mockUserId, timeRange);
 
@@ -305,7 +305,7 @@ describe('AnalyticsService', () => {
         },
       ];
 
-      prisma.userProgress.findMany.mockResolvedValue(mockRecentProgress);
+      prisma.progressEntry.findMany.mockResolvedValue(mockRecentProgress);
 
       const result = await AnalyticsService.getRecommendations(mockUserId);
 
@@ -330,7 +330,7 @@ describe('AnalyticsService', () => {
         difficultyLevel: 'Anfänger',
       }));
 
-      prisma.userProgress.findMany.mockResolvedValue(mockRecentProgress);
+      prisma.progressEntry.findMany.mockResolvedValue(mockRecentProgress);
 
       const result = await AnalyticsService.getRecommendations(mockUserId);
 
@@ -342,19 +342,17 @@ describe('AnalyticsService', () => {
     });
 
     it('should generate schedule recommendations for inactive users', async () => {
-      // Last activity was 5 days ago
+      // Last activity was 5 days ago, but provide enough historical data
       const oldActivity = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000);
-      const mockRecentProgress = [
-        {
-          exerciseId: 'breathing-1',
-          bodyArea: 'nervensystem',
-          completedAt: oldActivity,
-          durationMinutes: 15,
-          difficultyLevel: 'Anfänger',
-        },
-      ];
+      const mockRecentProgress = Array.from({ length: 5 }, (_, i) => ({
+        exerciseId: 'breathing-1',
+        bodyArea: 'nervensystem',
+        completedAt: new Date(oldActivity.getTime() - i * 24 * 60 * 60 * 1000),
+        durationMinutes: 15,
+        difficultyLevel: 'Anfänger',
+      }));
 
-      prisma.userProgress.findMany.mockResolvedValue(mockRecentProgress);
+      prisma.progressEntry.findMany.mockResolvedValue(mockRecentProgress);
 
       const result = await AnalyticsService.getRecommendations(mockUserId);
 
@@ -374,7 +372,7 @@ describe('AnalyticsService', () => {
         difficultyLevel: 'Anfänger',
       }));
 
-      prisma.userProgress.findMany.mockResolvedValue(mockRecentProgress);
+      prisma.progressEntry.findMany.mockResolvedValue(mockRecentProgress);
 
       const result = await AnalyticsService.getRecommendations(mockUserId);
 
@@ -395,7 +393,7 @@ describe('AnalyticsService', () => {
         },
       ];
 
-      prisma.userProgress.findMany.mockResolvedValue(mockRecentProgress);
+      prisma.progressEntry.findMany.mockResolvedValue(mockRecentProgress);
 
       const result = await AnalyticsService.getRecommendations(mockUserId);
 
@@ -499,22 +497,21 @@ describe('AnalyticsService', () => {
 
   describe('Helper functions', () => {
     it('should correctly map body area names', async () => {
-      const mockRecentProgress = [
-        {
-          exerciseId: 'breathing-1',
-          bodyArea: 'nervensystem',
-          completedAt: new Date(),
-          durationMinutes: 15,
-          difficultyLevel: 'Anfänger',
-        },
-      ];
+      // Provide progress in one area but not others to trigger neglected area recommendations
+      const mockRecentProgress = Array.from({ length: 5 }, (_, i) => ({
+        exerciseId: 'breathing-1',
+        bodyArea: 'hormone', // Practice only hormone area
+        completedAt: new Date(Date.now() - i * 24 * 60 * 60 * 1000),
+        durationMinutes: 15,
+        difficultyLevel: 'Anfänger',
+      }));
 
-      prisma.userProgress.findMany.mockResolvedValue(mockRecentProgress);
+      prisma.progressEntry.findMany.mockResolvedValue(mockRecentProgress);
 
       const result = await AnalyticsService.getRecommendations(mockUserId);
 
       // Find a recommendation that mentions body area names
-      const bodyAreaRec = result.find(rec => rec.description.includes('Nervensystem'));
+      const bodyAreaRec = result.find(rec => rec.description.includes('Nervensystem & Vagusnerv'));
       expect(bodyAreaRec).toBeDefined();
     });
 
@@ -527,7 +524,7 @@ describe('AnalyticsService', () => {
       ];
 
       for (const testCase of testCases) {
-        prisma.userProgress.groupBy.mockResolvedValue([]);
+        prisma.progressEntry.groupBy.mockResolvedValue([]);
 
         const result = await AnalyticsService.getProgressTrends(mockUserId, testCase);
 
@@ -538,7 +535,7 @@ describe('AnalyticsService', () => {
 
   describe('Error handling', () => {
     it('should handle database errors gracefully', async () => {
-      prisma.userProgress.findMany.mockRejectedValue(new Error('Database error'));
+      prisma.progressEntry.findMany.mockRejectedValue(new Error('Database error'));
 
       await expect(
         AnalyticsService.generateInsights(mockUserId)
@@ -546,8 +543,8 @@ describe('AnalyticsService', () => {
     });
 
     it('should handle empty progress data', async () => {
-      prisma.userProgress.findMany.mockResolvedValue([]);
-      prisma.userStreak.findUnique.mockResolvedValue(null);
+      prisma.progressEntry.findMany.mockResolvedValue([]);
+      prisma.streak.findUnique.mockResolvedValue(null);
 
       const result = await AnalyticsService.generateInsights(mockUserId);
 
@@ -565,7 +562,7 @@ describe('AnalyticsService', () => {
         },
       ];
 
-      prisma.userProgress.findMany.mockResolvedValue(malformedProgress);
+      prisma.progressEntry.findMany.mockResolvedValue(malformedProgress);
 
       // Should not throw error, but handle gracefully
       const result = await AnalyticsService.generateInsights(mockUserId);

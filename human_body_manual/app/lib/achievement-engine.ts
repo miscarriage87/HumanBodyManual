@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { 
   Achievement, 
   UserAchievement, 
@@ -6,8 +5,7 @@ import {
   ProgressEntry,
   BodyAreaType 
 } from './types';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 export class AchievementEngine {
   /**
@@ -244,13 +242,13 @@ export class AchievementEngine {
   // Helper methods
 
   private static async getTotalSessions(userId: string): Promise<number> {
-    return await prisma.userProgress.count({
+    return await prisma.progressEntry.count({
       where: { userId },
     });
   }
 
   private static async getCurrentStreak(userId: string): Promise<number> {
-    const streak = await prisma.userStreak.findUnique({
+    const streak = await prisma.streak.findUnique({
       where: {
         userId_streakType: {
           userId,
@@ -263,7 +261,7 @@ export class AchievementEngine {
   }
 
   private static async getBodyAreaSessions(userId: string, bodyArea: BodyAreaType): Promise<number> {
-    return await prisma.userProgress.count({
+    return await prisma.progressEntry.count({
       where: { userId, bodyArea },
     });
   }
@@ -291,7 +289,7 @@ export class AchievementEngine {
     weekStart.setHours(0, 0, 0, 0);
 
     // Count sessions this week
-    const sessionsThisWeek = await prisma.userProgress.count({
+    const sessionsThisWeek = await prisma.progressEntry.count({
       where: {
         userId,
         completedAt: { gte: weekStart },
@@ -308,7 +306,7 @@ export class AchievementEngine {
     weekStart.setDate(now.getDate() - now.getDay());
     weekStart.setHours(0, 0, 0, 0);
 
-    const bodyAreasThisWeek = await prisma.userProgress.findMany({
+    const bodyAreasThisWeek = await prisma.progressEntry.findMany({
       where: {
         userId,
         completedAt: { gte: weekStart },

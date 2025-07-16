@@ -61,12 +61,12 @@ const mockPrisma = {
     delete: jest.fn(),
   },
   progressEntry: {
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    count: jest.fn(),
-    groupBy: jest.fn(),
+    findMany: jest.fn().mockResolvedValue([]),
+    create: jest.fn().mockResolvedValue({}),
+    update: jest.fn().mockResolvedValue({}),
+    delete: jest.fn().mockResolvedValue({}),
+    count: jest.fn().mockResolvedValue(0),
+    groupBy: jest.fn().mockResolvedValue([]),
     aggregate: jest.fn(),
   },
   achievement: {
@@ -77,8 +77,10 @@ const mockPrisma = {
   },
   userAchievement: {
     findMany: jest.fn(),
+    findUnique: jest.fn(),
     create: jest.fn(),
     count: jest.fn(),
+    groupBy: jest.fn(),
   },
   streak: {
     findMany: jest.fn(),
@@ -148,17 +150,48 @@ jest.mock('./lib/job-queue', () => ({
     on: jest.fn(),
     close: jest.fn(),
   },
+  JobScheduler: {
+    scheduleUserAnalytics: jest.fn().mockResolvedValue(undefined),
+    scheduleBodyAreaAnalytics: jest.fn().mockResolvedValue(undefined),
+    scheduleInsightsGeneration: jest.fn().mockResolvedValue(undefined),
+    scheduleCacheWarmup: jest.fn().mockResolvedValue(undefined),
+  },
 }))
 
-// Mock Redis
+// Mock Redis with in-memory storage
 jest.mock('ioredis', () => {
+  const mockStorage = new Map();
+  
   return jest.fn().mockImplementation(() => ({
-    get: jest.fn(),
-    set: jest.fn(),
-    del: jest.fn(),
-    exists: jest.fn(),
-    expire: jest.fn(),
-    disconnect: jest.fn(),
+    get: jest.fn().mockImplementation((key) => {
+      return Promise.resolve(mockStorage.get(key) || null);
+    }),
+    set: jest.fn().mockImplementation((key, value) => {
+      mockStorage.set(key, value);
+      return Promise.resolve('OK');
+    }),
+    setex: jest.fn().mockImplementation((key, ttl, value) => {
+      mockStorage.set(key, value);
+      return Promise.resolve('OK');
+    }),
+    del: jest.fn().mockImplementation((key) => {
+      const existed = mockStorage.has(key);
+      mockStorage.delete(key);
+      return Promise.resolve(existed ? 1 : 0);
+    }),
+    keys: jest.fn().mockImplementation((pattern) => {
+      const keys = Array.from(mockStorage.keys());
+      if (pattern === '*') return Promise.resolve(keys);
+      // Simple pattern matching for tests
+      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+      return Promise.resolve(keys.filter(key => regex.test(key)));
+    }),
+    exists: jest.fn().mockImplementation((key) => {
+      return Promise.resolve(mockStorage.has(key) ? 1 : 0);
+    }),
+    expire: jest.fn().mockResolvedValue(1),
+    ping: jest.fn().mockResolvedValue('PONG'),
+    disconnect: jest.fn().mockResolvedValue(undefined),
   }))
 })
 
@@ -205,6 +238,9 @@ global.Response = class MockResponse {
 }
 
 
+
+// Mock JobScheduler (already mocked above in job-queue mock)
+// The JobScheduler is part of the job-queue module
 
 // Make mockPrisma available globally for tests
 global.mockPrisma = mockPrisma

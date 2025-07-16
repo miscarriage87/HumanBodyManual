@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from './db';
+import { prisma } from './prisma';
 import { cacheService } from './cache';
 
 // Query optimization utilities for progress tracking
@@ -41,7 +41,7 @@ export class QueryOptimizer {
     };
 
     // Use cursor-based pagination for better performance on large datasets
-    const progressData = await prisma.userProgress.findMany({
+    const progressData = await prisma.progressEntry.findMany({
       where: whereClause,
       orderBy: { completedAt: 'desc' },
       take: limit,
@@ -99,7 +99,7 @@ export class QueryOptimizer {
     // Use aggregation queries for better performance
     const [totalStats, bodyAreaStats, exerciseStats] = await Promise.all([
       // Total sessions and duration
-      prisma.userProgress.aggregate({
+      prisma.progressEntry.aggregate({
         where: whereClause,
         _count: { id: true },
         _sum: { durationMinutes: true },
@@ -107,7 +107,7 @@ export class QueryOptimizer {
       }),
 
       // Body area breakdown
-      prisma.userProgress.groupBy({
+      prisma.progressEntry.groupBy({
         by: ['bodyArea'],
         where: whereClause,
         _count: { bodyArea: true },
@@ -116,7 +116,7 @@ export class QueryOptimizer {
       }),
 
       // Exercise frequency
-      prisma.userProgress.groupBy({
+      prisma.progressEntry.groupBy({
         by: ['exerciseId'],
         where: whereClause,
         _count: { exerciseId: true },
@@ -152,7 +152,7 @@ export class QueryOptimizer {
     }
 
     // Get current streaks from database
-    const streaks = await prisma.userStreak.findMany({
+    const streaks = await prisma.streak.findMany({
       where: { userId },
       orderBy: { currentCount: 'desc' },
     });
@@ -296,14 +296,14 @@ export class QueryOptimizer {
 
     const [activeUsers, sessionStats, popularExercises, bodyAreaStats] = await Promise.all([
       // Count unique active users
-      prisma.userProgress.findMany({
+      prisma.progressEntry.findMany({
         where: { completedAt: { gte: startDate } },
         select: { userId: true },
         distinct: ['userId'],
       }),
 
       // Session statistics
-      prisma.userProgress.aggregate({
+      prisma.progressEntry.aggregate({
         where: { completedAt: { gte: startDate } },
         _count: { id: true },
         _sum: { durationMinutes: true },
@@ -311,7 +311,7 @@ export class QueryOptimizer {
       }),
 
       // Popular exercises
-      prisma.userProgress.groupBy({
+      prisma.progressEntry.groupBy({
         by: ['exerciseId'],
         where: { completedAt: { gte: startDate } },
         _count: { exerciseId: true },
@@ -320,7 +320,7 @@ export class QueryOptimizer {
       }),
 
       // Body area popularity
-      prisma.userProgress.groupBy({
+      prisma.progressEntry.groupBy({
         by: ['bodyArea'],
         where: { completedAt: { gte: startDate } },
         _count: { bodyArea: true },
@@ -369,7 +369,7 @@ export class QueryOptimizer {
       ...(cursor && { id: { lt: cursor } }),
     };
 
-    const progress = await prisma.userProgress.findMany({
+    const progress = await prisma.progressEntry.findMany({
       where: whereClause,
       orderBy: { completedAt: 'desc' },
       take: limit + 1, // Take one extra to determine if there are more results

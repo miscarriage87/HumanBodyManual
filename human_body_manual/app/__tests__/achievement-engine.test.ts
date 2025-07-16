@@ -3,7 +3,7 @@ import { AchievementEngine } from '../lib/achievement-engine';
 import { ProgressEntry, BodyAreaType, DifficultyLevel } from '../lib/types';
 
 // Mock Prisma
-jest.mock('../lib/db', () => ({
+jest.mock('../lib/prisma', () => ({
   prisma: {
     achievement: {
       findMany: jest.fn(),
@@ -17,17 +17,17 @@ jest.mock('../lib/db', () => ({
       count: jest.fn(),
       groupBy: jest.fn(),
     },
-    userProgress: {
+    progressEntry: {
       count: jest.fn(),
       findMany: jest.fn(),
     },
-    userStreak: {
+    streak: {
       findUnique: jest.fn(),
     },
   },
 }));
 
-const { prisma } = require('../lib/db');
+const { prisma } = require('../lib/prisma');
 
 describe('AchievementEngine', () => {
   const mockUserId = 'test-user-123';
@@ -73,7 +73,7 @@ describe('AchievementEngine', () => {
       prisma.achievement.findMany.mockResolvedValue([mockAchievement]);
       
       // User has 1 total session (meets criteria)
-      prisma.userProgress.count.mockResolvedValue(1);
+      prisma.progressEntry.count.mockResolvedValue(1);
       
       // Mock the achievement creation
       prisma.userAchievement.create.mockResolvedValue({
@@ -149,7 +149,7 @@ describe('AchievementEngine', () => {
       prisma.achievement.findMany.mockResolvedValue([streakAchievement]);
       
       // Mock current streak of 7
-      prisma.userStreak.findUnique.mockResolvedValue({
+      prisma.streak.findUnique.mockResolvedValue({
         currentCount: 7,
         streakType: 'daily',
       });
@@ -189,7 +189,7 @@ describe('AchievementEngine', () => {
       prisma.achievement.findMany.mockResolvedValue([masteryAchievement]);
       
       // Mock 25 sessions in nervensystem
-      prisma.userProgress.count.mockImplementation(({ where }) => {
+      prisma.progressEntry.count.mockImplementation(({ where }) => {
         if (where.bodyArea === 'nervensystem') {
           return Promise.resolve(25);
         }
@@ -233,7 +233,7 @@ describe('AchievementEngine', () => {
       prisma.achievement.findMany.mockResolvedValue([perfectWeekAchievement]);
       
       // Mock 7+ sessions this week (perfect week)
-      prisma.userProgress.count.mockResolvedValue(8);
+      prisma.progressEntry.count.mockResolvedValue(8);
 
       prisma.userAchievement.create.mockResolvedValue({
         id: 'ua-perfect',
@@ -357,7 +357,7 @@ describe('AchievementEngine', () => {
 
       prisma.achievement.findUnique.mockResolvedValue(mockAchievement);
       prisma.userAchievement.findUnique.mockResolvedValue(null); // Not completed
-      prisma.userProgress.count.mockResolvedValue(6); // 6 out of 10 sessions
+      prisma.progressEntry.count.mockResolvedValue(6); // 6 out of 10 sessions
 
       const result = await AchievementEngine.calculateProgress(mockUserId, 'ach-sessions-10');
 
@@ -391,7 +391,7 @@ describe('AchievementEngine', () => {
         achievementId: 'ach-sessions-5',
         earnedAt: new Date(),
       });
-      prisma.userProgress.count.mockResolvedValue(8); // More than target
+      prisma.progressEntry.count.mockResolvedValue(8); // More than target
 
       const result = await AchievementEngine.calculateProgress(mockUserId, 'ach-sessions-5');
 
@@ -448,7 +448,7 @@ describe('AchievementEngine', () => {
         .mockResolvedValueOnce({ id: 'ua-1' }) // First is completed
         .mockResolvedValueOnce(null); // Second is not completed
       
-      prisma.userProgress.count
+      prisma.progressEntry.count
         .mockResolvedValueOnce(5) // Current progress for first
         .mockResolvedValueOnce(7); // Current progress for second
 
@@ -476,27 +476,33 @@ describe('AchievementEngine', () => {
       prisma.achievement.count.mockResolvedValue(25);
       prisma.userAchievement.count.mockResolvedValue(150);
       
-      // Most earned achievement
-      prisma.userAchievement.groupBy.mockResolvedValue([
-        {
-          achievementId: 'ach-popular',
-          _count: { achievementId: 45 },
-        },
-      ]);
+      // Most earned achievement (first groupBy call)
+      prisma.userAchievement.groupBy
+        .mockResolvedValueOnce([
+          {
+            achievementId: 'ach-popular',
+            _count: { achievementId: 45 },
+          },
+        ])
+        // Rare achievements (second groupBy call)
+        .mockResolvedValueOnce([
+          {
+            achievementId: 'ach-rare',
+            _count: { achievementId: 3 },
+          },
+        ]);
       
-      prisma.achievement.findUnique.mockResolvedValue({
-        id: 'ach-popular',
-        name: 'Popular Achievement',
-        rarity: 'common',
-      });
-
-      // Rare achievements
-      prisma.userAchievement.groupBy.mockResolvedValue([
-        {
-          achievementId: 'ach-rare',
-          _count: { achievementId: 3 },
-        },
-      ]);
+      prisma.achievement.findUnique
+        .mockResolvedValueOnce({
+          id: 'ach-popular',
+          name: 'Popular Achievement',
+          rarity: 'common',
+        })
+        .mockResolvedValueOnce({
+          id: 'ach-rare',
+          name: 'Rare Achievement',
+          rarity: 'epic',
+        });
 
       const result = await AchievementEngine.getAchievementStats();
 
@@ -527,22 +533,22 @@ describe('AchievementEngine', () => {
       const testCases = [
         {
           criteria: { type: 'total_sessions', target: 5 },
-          mockSetup: () => prisma.userProgress.count.mockResolvedValue(5),
+          mockSetup: () => prisma.progressEntry.count.mockResolvedValue(5),
           shouldPass: true,
         },
         {
           criteria: { type: 'total_sessions', target: 10 },
-          mockSetup: () => prisma.userProgress.count.mockResolvedValue(8),
+          mockSetup: () => prisma.progressEntry.count.mockResolvedValue(8),
           shouldPass: false,
         },
         {
           criteria: { type: 'streak', target: 7 },
-          mockSetup: () => prisma.userStreak.findUnique.mockResolvedValue({ currentCount: 7 }),
+          mockSetup: () => prisma.streak.findUnique.mockResolvedValue({ currentCount: 7 }),
           shouldPass: true,
         },
         {
           criteria: { type: 'body_area_mastery', bodyArea: 'nervensystem', target: 15 },
-          mockSetup: () => prisma.userProgress.count.mockImplementation(({ where }) => 
+          mockSetup: () => prisma.progressEntry.count.mockImplementation(({ where }) => 
             where.bodyArea === 'nervensystem' ? Promise.resolve(15) : Promise.resolve(0)
           ),
           shouldPass: true,

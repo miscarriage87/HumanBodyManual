@@ -4,29 +4,45 @@ import { QueryOptimizer, PerformanceMonitor } from '../lib/query-optimizer';
 import { PaginationService } from '../lib/pagination';
 import { JobScheduler } from '../lib/job-queue';
 
-// Mock Redis
+// Mock Redis with storage that can be cleared between tests
+let mockRedisStorage = new Map();
+
 jest.mock('ioredis', () => {
   return jest.fn().mockImplementation(() => ({
-    setex: jest.fn().mockResolvedValue('OK'),
-    get: jest.fn().mockResolvedValue(null),
-    del: jest.fn().mockResolvedValue(1),
-    keys: jest.fn().mockResolvedValue([]),
+    setex: jest.fn().mockImplementation((key, ttl, value) => {
+      mockRedisStorage.set(key, value);
+      return Promise.resolve('OK');
+    }),
+    get: jest.fn().mockImplementation((key) => {
+      return Promise.resolve(mockRedisStorage.get(key) || null);
+    }),
+    del: jest.fn().mockImplementation((key) => {
+      const existed = mockRedisStorage.has(key);
+      mockRedisStorage.delete(key);
+      return Promise.resolve(existed ? 1 : 0);
+    }),
+    keys: jest.fn().mockImplementation((pattern) => {
+      const keys = Array.from(mockRedisStorage.keys());
+      if (pattern === '*') return Promise.resolve(keys);
+      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+      return Promise.resolve(keys.filter(key => regex.test(key)));
+    }),
     ping: jest.fn().mockResolvedValue('PONG'),
     disconnect: jest.fn().mockResolvedValue(undefined),
   }));
 });
 
 // Mock Prisma
-jest.mock('../lib/db', () => ({
+jest.mock('../lib/prisma', () => ({
   prisma: {
-    userProgress: {
+    progressEntry: {
       findMany: jest.fn(),
       count: jest.fn(),
       aggregate: jest.fn(),
       groupBy: jest.fn(),
       create: jest.fn(),
     },
-    userStreak: {
+    streak: {
       findMany: jest.fn(),
     },
     userAchievement: {
@@ -51,8 +67,23 @@ describe('Caching and Performance Optimizations', () => {
   let cacheService: CacheService;
 
   beforeEach(() => {
+    // Clear Redis mock storage to prevent test interference
+    mockRedisStorage.clear();
+    
     cacheService = new CacheService();
     jest.clearAllMocks();
+    
+    // Reset specific mocks that cause test interference
+    const { prisma } = require('../lib/prisma');
+    if (prisma.progressEntry.aggregate.mockReset) {
+      prisma.progressEntry.aggregate.mockReset();
+    }
+    if (prisma.progressEntry.groupBy.mockReset) {
+      prisma.progressEntry.groupBy.mockReset();
+    }
+    if (prisma.progressEntry.findMany.mockReset) {
+      prisma.progressEntry.findMany.mockReset();
+    }
   });
 
   afterEach(async () => {
@@ -124,8 +155,14 @@ describe('Caching and Performance Optimizations', () => {
       };
 
       // Mock the Prisma calls
-      const { prisma } = require('../lib/db');
-      prisma.userProgress.findMany.mockResolvedValue([
+      const { prisma } = require('../lib/prisma');
+      
+      // Reset mocks for test isolation
+      prisma.progressEntry.findMany.mockReset();
+      prisma.progressEntry.aggregate.mockReset();
+      prisma.progressEntry.groupBy.mockReset();
+      
+      prisma.progressEntry.findMany.mockResolvedValue([
         {
           id: '1',
           exerciseId: 'breathing-basics',
@@ -135,6 +172,15 @@ describe('Caching and Performance Optimizations', () => {
           difficultyLevel: 'Anfänger',
         },
       ]);
+      
+      // Mock aggregate call for stats
+      prisma.progressEntry.aggregate.mockResolvedValue({
+        _count: { id: 1 },
+        _sum: { durationMinutes: 15 },
+        _avg: { durationMinutes: 15 },
+      });
+      
+      prisma.progressEntry.groupBy.mockResolvedValue([]);
 
       const result = await QueryOptimizer.getUserProgressOptimized(userId, options);
 
@@ -144,16 +190,22 @@ describe('Caching and Performance Optimizations', () => {
     });
 
     it('should get optimized user statistics', async () => {
-      const userId = 'test-user-123';
+      const userId = 'test-user-stats-123'; // Use unique userId to avoid cache conflicts
 
-      // Mock the Prisma aggregation calls
-      const { prisma } = require('../lib/db');
-      prisma.userProgress.aggregate.mockResolvedValue({
+      // Mock the Prisma aggregation calls with fresh mocks
+      const { prisma } = require('../lib/prisma');
+      
+      // Reset and set up fresh mocks
+      prisma.progressEntry.aggregate.mockReset();
+      prisma.progressEntry.groupBy.mockReset();
+      
+      prisma.progressEntry.aggregate.mockResolvedValue({
         _count: { id: 10 },
         _sum: { durationMinutes: 300 },
         _avg: { durationMinutes: 30 },
       });
-      prisma.userProgress.groupBy.mockResolvedValue([]);
+      
+      prisma.progressEntry.groupBy.mockResolvedValue([]);
 
       const result = await QueryOptimizer.getUserStatsOptimized(userId);
 
@@ -213,9 +265,9 @@ describe('Caching and Performance Optimizations', () => {
       const limit = 10;
 
       // Mock Prisma calls
-      const { prisma } = require('../lib/db');
-      prisma.userProgress.findMany.mockResolvedValue([]);
-      prisma.userProgress.count.mockResolvedValue(0);
+      const { prisma } = require('../lib/prisma');
+      prisma.progressEntry.findMany.mockResolvedValue([]);
+      prisma.progressEntry.count.mockResolvedValue(0);
 
       const result = await PaginationService.paginateUserProgress(userId, page, limit);
 
@@ -231,8 +283,8 @@ describe('Caching and Performance Optimizations', () => {
       const limit = 10;
 
       // Mock Prisma calls
-      const { prisma } = require('../lib/db');
-      prisma.userProgress.findMany.mockResolvedValue([]);
+      const { prisma } = require('../lib/prisma');
+      prisma.progressEntry.findMany.mockResolvedValue([]);
 
       const result = await PaginationService.cursorPaginateUserProgress(userId, undefined, limit);
 
@@ -250,9 +302,9 @@ describe('Caching and Performance Optimizations', () => {
       };
 
       // Mock Prisma calls
-      const { prisma } = require('../lib/db');
-      prisma.userProgress.findMany.mockResolvedValue([]);
-      prisma.userProgress.count.mockResolvedValue(0);
+      const { prisma } = require('../lib/prisma');
+      prisma.progressEntry.findMany.mockResolvedValue([]);
+      prisma.progressEntry.count.mockResolvedValue(0);
 
       const result = await PaginationService.searchUserProgress(userId, searchParams);
 
@@ -339,14 +391,20 @@ describe('Caching and Performance Optimizations', () => {
       const cacheService = new CacheService();
       jest.spyOn(cacheService, 'get').mockResolvedValue(null);
 
-      // Mock database response
-      const { prisma } = require('../lib/db');
-      prisma.userProgress.aggregate.mockResolvedValue({
+      // Mock database response with fresh mocks
+      const { prisma } = require('../lib/prisma');
+      
+      // Reset and set up fresh mocks
+      prisma.progressEntry.aggregate.mockReset();
+      prisma.progressEntry.groupBy.mockReset();
+      
+      prisma.progressEntry.aggregate.mockResolvedValue({
         _count: { id: 5 },
         _sum: { durationMinutes: 150 },
         _avg: { durationMinutes: 30 },
       });
-      prisma.userProgress.groupBy.mockResolvedValue([]);
+      
+      prisma.progressEntry.groupBy.mockResolvedValue([]);
 
       const result = await QueryOptimizer.getUserStatsOptimized(userId);
 

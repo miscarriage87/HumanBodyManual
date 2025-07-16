@@ -1,4 +1,3 @@
-import { PrismaClient } from '@prisma/client';
 import { 
   UserInsight, 
   Recommendation, 
@@ -9,8 +8,7 @@ import {
   InsightType,
   InsightContent
 } from './types';
-
-const prisma = new PrismaClient();
+import { prisma } from './prisma';
 
 export class AnalyticsService {
   /**

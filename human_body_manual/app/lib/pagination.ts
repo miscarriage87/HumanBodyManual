@@ -1,5 +1,5 @@
 import { Prisma } from '@prisma/client';
-import { prisma } from './db';
+import { prisma } from './prisma';
 import { cacheService } from './cache';
 
 // Pagination configuration
@@ -81,7 +81,7 @@ export class PaginationService {
 
     // Execute queries in parallel
     const [data, total] = await Promise.all([
-      prisma.userProgress.findMany({
+      prisma.progressEntry.findMany({
         where: whereClause,
         orderBy: { completedAt: 'desc' },
         skip: offset,
@@ -98,7 +98,7 @@ export class PaginationService {
           energyLevel: true,
         },
       }),
-      prisma.userProgress.count({ where: whereClause }),
+      prisma.progressEntry.count({ where: whereClause }),
     ]);
 
     const totalPages = Math.ceil(total / validatedLimit);
@@ -168,7 +168,7 @@ export class PaginationService {
     }
 
     // Fetch one extra item to determine if there are more results
-    const data = await prisma.userProgress.findMany({
+    const data = await prisma.progressEntry.findMany({
       where: whereClause,
       orderBy: direction === 'forward' ? { completedAt: 'desc' } : { completedAt: 'asc' },
       take: validatedLimit + 1,
@@ -452,7 +452,7 @@ export class PaginationService {
     };
 
     const [data, total] = await Promise.all([
-      prisma.userProgress.findMany({
+      prisma.progressEntry.findMany({
         where: whereClause,
         orderBy: { completedAt: 'desc' },
         skip: offset,
@@ -469,7 +469,7 @@ export class PaginationService {
           energyLevel: true,
         },
       }),
-      prisma.userProgress.count({ where: whereClause }),
+      prisma.progressEntry.count({ where: whereClause }),
     ]);
 
     const totalPages = Math.ceil(total / validatedLimit);
