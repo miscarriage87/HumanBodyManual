@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { CacheService, CACHE_KEYS, CACHE_TTL } from '../lib/cache';
+import { CacheService, cacheService, CACHE_KEYS, CACHE_TTL } from '../lib/cache';
 import { QueryOptimizer, PerformanceMonitor } from '../lib/query-optimizer';
 import { PaginationService } from '../lib/pagination';
 import { JobScheduler } from '../lib/job-queue';
@@ -64,13 +64,10 @@ jest.mock('../lib/prisma', () => ({
 }));
 
 describe('Caching and Performance Optimizations', () => {
-  let cacheService: CacheService;
-
   beforeEach(() => {
     // Clear Redis mock storage to prevent test interference
     mockRedisStorage.clear();
     
-    cacheService = new CacheService();
     jest.clearAllMocks();
     
     // Reset specific mocks that cause test interference
@@ -87,7 +84,7 @@ describe('Caching and Performance Optimizations', () => {
   });
 
   afterEach(async () => {
-    await cacheService.disconnect();
+    // No need to disconnect in tests since we're using mocks
   });
 
   describe('CacheService', () => {
@@ -388,7 +385,6 @@ describe('Caching and Performance Optimizations', () => {
       const userId = 'test-user-123';
 
       // Mock cache miss
-      const cacheService = new CacheService();
       jest.spyOn(cacheService, 'get').mockResolvedValue(null);
 
       // Mock database response with fresh mocks
@@ -416,7 +412,6 @@ describe('Caching and Performance Optimizations', () => {
 
 describe('Performance Benchmarks', () => {
   it('should complete cache operations within acceptable time', async () => {
-    const cacheService = new CacheService();
     const testData = { large: 'data'.repeat(1000) };
     
     const startTime = Date.now();
@@ -429,7 +424,6 @@ describe('Performance Benchmarks', () => {
   });
 
   it('should handle concurrent cache operations', async () => {
-    const cacheService = new CacheService();
     const operations = [];
 
     // Create 10 concurrent cache operations

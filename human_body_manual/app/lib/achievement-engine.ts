@@ -15,56 +15,61 @@ export class AchievementEngine {
     userId: string, 
     progressData: ProgressEntry
   ): Promise<Achievement[]> {
-    const newAchievements: Achievement[] = [];
+    try {
+      const newAchievements: Achievement[] = [];
 
-    // Get all achievements that the user hasn't earned yet
-    const earnedAchievementIds = await prisma.userAchievement.findMany({
-      where: { userId },
-      select: { achievementId: true },
-    });
+      // Get all achievements that the user hasn't earned yet
+      const earnedAchievementIds = await prisma.userAchievement.findMany({
+        where: { userId },
+        select: { achievementId: true },
+      });
 
-    const earnedIds = new Set(earnedAchievementIds.map((ua: { achievementId: string }) => ua.achievementId));
+      const earnedIds = new Set(earnedAchievementIds.map((ua: { achievementId: string }) => ua.achievementId));
 
-    const availableAchievements = await prisma.achievement.findMany({
-      where: {
-        id: { notIn: Array.from(earnedIds) },
-      },
-    });
+      const availableAchievements = await prisma.achievement.findMany({
+        where: {
+          id: { notIn: Array.from(earnedIds) },
+        },
+      });
 
-    // Check each available achievement
-    for (const achievement of availableAchievements) {
-      const criteria = achievement.criteria as any;
-      const isEarned = await this.checkAchievementCriteria(userId, criteria, progressData);
+      // Check each available achievement
+      for (const achievement of availableAchievements) {
+        const criteria = achievement.criteria as any;
+        const isEarned = await this.checkAchievementCriteria(userId, criteria, progressData);
 
-      if (isEarned) {
-        // Award the achievement
-        await prisma.userAchievement.create({
-          data: {
-            userId,
-            achievementId: achievement.id,
-            progressSnapshot: {
-              totalSessions: await this.getTotalSessions(userId),
-              currentStreak: await this.getCurrentStreak(userId),
-              bodyAreaProgress: await this.getBodyAreaProgress(userId),
+        if (isEarned) {
+          // Award the achievement
+          await prisma.userAchievement.create({
+            data: {
+              userId,
+              achievementId: achievement.id,
+              progressSnapshot: {
+                totalSessions: await this.getTotalSessions(userId),
+                currentStreak: await this.getCurrentStreak(userId),
+                bodyAreaProgress: await this.getBodyAreaProgress(userId),
+              },
             },
-          },
-        });
+          });
 
-        newAchievements.push({
-          id: achievement.id,
-          name: achievement.name,
-          description: achievement.description,
-          category: achievement.category as any,
-          criteria: achievement.criteria as any,
-          badgeIcon: achievement.badgeIcon || '',
-          points: achievement.points,
-          rarity: achievement.rarity as any,
-          createdAt: achievement.createdAt,
-        });
+          newAchievements.push({
+            id: achievement.id,
+            name: achievement.name,
+            description: achievement.description,
+            category: achievement.category as any,
+            criteria: achievement.criteria as any,
+            badgeIcon: achievement.badgeIcon || '',
+            points: achievement.points,
+            rarity: achievement.rarity as any,
+            createdAt: achievement.createdAt,
+          });
+        }
       }
-    }
 
-    return newAchievements;
+      return newAchievements;
+    } catch (error) {
+      console.error('Error checking achievements:', error);
+      throw error;
+    }
   }
 
   /**
@@ -242,13 +247,13 @@ export class AchievementEngine {
   // Helper methods
 
   private static async getTotalSessions(userId: string): Promise<number> {
-    return await prisma.progressEntry.count({
+    return await prisma.userProgress.count({
       where: { userId },
     });
   }
 
   private static async getCurrentStreak(userId: string): Promise<number> {
-    const streak = await prisma.streak.findUnique({
+    const streak = await prisma.userStreak.findUnique({
       where: {
         userId_streakType: {
           userId,
@@ -261,7 +266,7 @@ export class AchievementEngine {
   }
 
   private static async getBodyAreaSessions(userId: string, bodyArea: BodyAreaType): Promise<number> {
-    return await prisma.progressEntry.count({
+    return await prisma.userProgress.count({
       where: { userId, bodyArea },
     });
   }
@@ -289,7 +294,7 @@ export class AchievementEngine {
     weekStart.setHours(0, 0, 0, 0);
 
     // Count sessions this week
-    const sessionsThisWeek = await prisma.progressEntry.count({
+    const sessionsThisWeek = await prisma.userProgress.count({
       where: {
         userId,
         completedAt: { gte: weekStart },
@@ -306,7 +311,7 @@ export class AchievementEngine {
     weekStart.setDate(now.getDate() - now.getDay());
     weekStart.setHours(0, 0, 0, 0);
 
-    const bodyAreasThisWeek = await prisma.progressEntry.findMany({
+    const bodyAreasThisWeek = await prisma.userProgress.findMany({
       where: {
         userId,
         completedAt: { gte: weekStart },

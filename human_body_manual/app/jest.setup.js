@@ -62,23 +62,23 @@ const mockPrisma = {
     count: jest.fn().mockResolvedValue(0),
   },
   userProgress: {
-    findMany: jest.fn().mockResolvedValue([]),
-    findFirst: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockResolvedValue({}),
-    update: jest.fn().mockResolvedValue({}),
-    delete: jest.fn().mockResolvedValue({}),
-    count: jest.fn().mockResolvedValue(0),
-    groupBy: jest.fn().mockResolvedValue([]),
-    aggregate: jest.fn().mockResolvedValue({ _sum: { durationMinutes: 0 }, _avg: { durationMinutes: 0 }, _count: { id: 0 } }),
+    findMany: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
+    groupBy: jest.fn(),
+    aggregate: jest.fn(),
   },
   userStreak: {
-    findMany: jest.fn().mockResolvedValue([]),
-    findUnique: jest.fn().mockResolvedValue(null),
-    findFirst: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockResolvedValue({}),
-    update: jest.fn().mockResolvedValue({}),
-    delete: jest.fn().mockResolvedValue({}),
-    count: jest.fn().mockResolvedValue(0),
+    findMany: jest.fn(),
+    findUnique: jest.fn(),
+    findFirst: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn(),
   },
   progressEntry: {
     findMany: jest.fn().mockResolvedValue([]),
@@ -323,42 +323,9 @@ jest.mock('./lib/query-optimizer', () => ({
   QueryOptimizer: mockQueryOptimizer,
 }));
 
-// Mock ProgressTracker
-const mockProgressTracker = {
-  recordCompletion: jest.fn().mockResolvedValue({}),
-  getUserProgress: jest.fn().mockResolvedValue({
-    userId: 'test-user',
-    totalSessions: 0,
-    totalMinutes: 0,
-    averageSessionDuration: 0,
-    bodyAreaStats: [],
-    recentActivity: [],
-    streaks: [],
-    achievements: [],
-  }),
-  getStreakData: jest.fn().mockResolvedValue([]),
-  getBodyAreaStats: jest.fn().mockResolvedValue([]),
-  getProgressEntries: jest.fn().mockResolvedValue([]),
-  markExerciseCompleted: jest.fn().mockResolvedValue({}),
-  getProgressData: jest.fn().mockResolvedValue({}),
-};
+// Don't mock ProgressTracker - we want to test the actual implementation
 
-jest.mock('./lib/progress-tracker', () => ({
-  ProgressTracker: mockProgressTracker,
-}));
-
-// Mock AchievementEngine
-const mockAchievementEngine = {
-  checkAchievements: jest.fn().mockResolvedValue([]),
-  getUserAchievements: jest.fn().mockResolvedValue([]),
-  calculateProgress: jest.fn().mockResolvedValue({}),
-  getAllAchievementsWithProgress: jest.fn().mockResolvedValue([]),
-  getAchievementStats: jest.fn().mockResolvedValue({}),
-};
-
-jest.mock('./lib/achievement-engine', () => ({
-  AchievementEngine: mockAchievementEngine,
-}));
+// Don't mock AchievementEngine - we want to test the actual implementation
 
 // Mock validation schemas
 const mockValidationSchemas = {
@@ -374,6 +341,4 @@ global.mockPrisma = mockPrisma;
 global.mockCacheService = mockCacheService;
 global.mockAuthHelpers = mockAuthHelpers;
 global.mockQueryOptimizer = mockQueryOptimizer;
-global.mockProgressTracker = mockProgressTracker;
-global.mockAchievementEngine = mockAchievementEngine;
 global.mockValidationSchemas = mockValidationSchemas;

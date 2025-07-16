@@ -21,46 +21,55 @@ export class ProgressTracker {
     userId: string, 
     exerciseData: ExerciseCompletion
   ): Promise<ProgressEntry> {
-    const progressEntry = await prisma.userProgress.create({
-      data: {
-        userId,
-        exerciseId: exerciseData.exerciseId,
-        bodyArea: exerciseData.bodyArea,
-        completedAt: new Date(),
-        durationMinutes: exerciseData.durationMinutes,
-        difficultyLevel: exerciseData.difficultyLevel,
-        sessionNotes: exerciseData.sessionNotes,
-        biometricData: exerciseData.biometricData ? JSON.stringify(exerciseData.biometricData) : undefined,
-        mood: exerciseData.mood,
-        energyLevel: exerciseData.energyLevel,
-      },
-    });
+    try {
+      if (!userId) {
+        throw new Error('User ID is required');
+      }
 
-    // Update streaks after recording completion
-    await this.updateStreaks(userId);
+      const progressEntry = await prisma.userProgress.create({
+        data: {
+          userId,
+          exerciseId: exerciseData.exerciseId,
+          bodyArea: exerciseData.bodyArea,
+          completedAt: new Date(),
+          durationMinutes: exerciseData.durationMinutes,
+          difficultyLevel: exerciseData.difficultyLevel,
+          sessionNotes: exerciseData.sessionNotes,
+          biometricData: exerciseData.biometricData ? JSON.stringify(exerciseData.biometricData) : undefined,
+          mood: exerciseData.mood,
+          energyLevel: exerciseData.energyLevel,
+        },
+      });
 
-    // Invalidate user-related caches
-    await QueryOptimizer.invalidateUserCaches(userId, exerciseData.bodyArea);
+      // Update streaks after recording completion
+      await this.updateStreaks(userId);
 
-    // Schedule background jobs for analytics and insights
-    await JobScheduler.scheduleUserAnalytics(userId);
-    await JobScheduler.scheduleBodyAreaAnalytics(userId, exerciseData.bodyArea);
-    await JobScheduler.scheduleInsightsGeneration(userId);
+      // Invalidate user-related caches
+      await QueryOptimizer.invalidateUserCaches(userId, exerciseData.bodyArea);
 
-    return {
-      id: progressEntry.id,
-      userId: progressEntry.userId,
-      exerciseId: progressEntry.exerciseId,
-      bodyArea: progressEntry.bodyArea as BodyAreaType,
-      completedAt: progressEntry.completedAt,
-      durationMinutes: progressEntry.durationMinutes || undefined,
-      difficultyLevel: progressEntry.difficultyLevel as DifficultyLevel,
-      sessionNotes: progressEntry.sessionNotes || undefined,
-      biometricData: progressEntry.biometricData ? JSON.parse(progressEntry.biometricData as string) : undefined,
-      mood: progressEntry.mood as any,
-      energyLevel: progressEntry.energyLevel as any,
-      createdAt: progressEntry.createdAt,
-    };
+      // Schedule background jobs for analytics and insights
+      await JobScheduler.scheduleUserAnalytics(userId);
+      await JobScheduler.scheduleBodyAreaAnalytics(userId, exerciseData.bodyArea);
+      await JobScheduler.scheduleInsightsGeneration(userId);
+
+      return {
+        id: progressEntry.id,
+        userId: progressEntry.userId,
+        exerciseId: progressEntry.exerciseId,
+        bodyArea: progressEntry.bodyArea as BodyAreaType,
+        completedAt: progressEntry.completedAt,
+        durationMinutes: progressEntry.durationMinutes || undefined,
+        difficultyLevel: progressEntry.difficultyLevel as DifficultyLevel,
+        sessionNotes: progressEntry.sessionNotes || undefined,
+        biometricData: progressEntry.biometricData ? JSON.parse(progressEntry.biometricData as string) : undefined,
+        mood: progressEntry.mood as any,
+        energyLevel: progressEntry.energyLevel as any,
+        createdAt: progressEntry.createdAt,
+      };
+    } catch (error) {
+      console.error('Error recording completion:', error);
+      throw error;
+    }
   }
 
   /**
