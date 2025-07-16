@@ -1,8 +1,32 @@
 import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
-import { CacheService, cacheService, CACHE_KEYS, CACHE_TTL } from '../lib/cache';
-import { QueryOptimizer, PerformanceMonitor } from '../lib/query-optimizer';
 import { PaginationService } from '../lib/pagination';
 import { JobScheduler } from '../lib/job-queue';
+
+// Define cache constants directly since imports are problematic with mocks
+const CACHE_TTL = {
+  SHORT: 300, // 5 minutes
+  MEDIUM: 1800, // 30 minutes
+  LONG: 3600, // 1 hour
+  DAILY: 86400, // 24 hours
+};
+
+const CACHE_KEYS = {
+  USER_PROGRESS: 'user_progress',
+  USER_STATS: 'user_stats',
+  BODY_AREA_STATS: 'body_area_stats',
+  ACHIEVEMENTS: 'achievements',
+  COMMUNITY_STATS: 'community_stats',
+  INSIGHTS: 'insights',
+  STREAKS: 'streaks',
+};
+
+// Import cache service after mocking Redis
+const { CacheService, cacheService } = require('../lib/cache');
+
+// Import QueryOptimizer and PerformanceMonitor after mocking dependencies
+// We need to clear the mock and use the real implementation for these tests
+jest.unmock('../lib/query-optimizer');
+const { QueryOptimizer, PerformanceMonitor } = require('../lib/query-optimizer');
 
 // Mock Redis with storage that can be cleared between tests
 let mockRedisStorage = new Map();
@@ -155,11 +179,11 @@ describe('Caching and Performance Optimizations', () => {
       const { prisma } = require('../lib/prisma');
       
       // Reset mocks for test isolation
-      prisma.progressEntry.findMany.mockReset();
-      prisma.progressEntry.aggregate.mockReset();
-      prisma.progressEntry.groupBy.mockReset();
+      prisma.userProgress.findMany.mockReset();
+      prisma.userProgress.aggregate.mockReset();
+      prisma.userProgress.groupBy.mockReset();
       
-      prisma.progressEntry.findMany.mockResolvedValue([
+      prisma.userProgress.findMany.mockResolvedValue([
         {
           id: '1',
           exerciseId: 'breathing-basics',
@@ -171,13 +195,13 @@ describe('Caching and Performance Optimizations', () => {
       ]);
       
       // Mock aggregate call for stats
-      prisma.progressEntry.aggregate.mockResolvedValue({
+      prisma.userProgress.aggregate.mockResolvedValue({
         _count: { id: 1 },
         _sum: { durationMinutes: 15 },
         _avg: { durationMinutes: 15 },
       });
       
-      prisma.progressEntry.groupBy.mockResolvedValue([]);
+      prisma.userProgress.groupBy.mockResolvedValue([]);
 
       const result = await QueryOptimizer.getUserProgressOptimized(userId, options);
 
@@ -193,10 +217,10 @@ describe('Caching and Performance Optimizations', () => {
       const { prisma } = require('../lib/prisma');
       
       // Reset and set up fresh mocks
-      prisma.progressEntry.aggregate.mockReset();
-      prisma.progressEntry.groupBy.mockReset();
+      prisma.userProgress.aggregate.mockReset();
+      prisma.userProgress.groupBy.mockReset();
       
-      prisma.progressEntry.aggregate.mockResolvedValue({
+      prisma.userProgress.aggregate.mockResolvedValue({
         _count: { id: 10 },
         _sum: { durationMinutes: 300 },
         _avg: { durationMinutes: 30 },
@@ -391,16 +415,16 @@ describe('Caching and Performance Optimizations', () => {
       const { prisma } = require('../lib/prisma');
       
       // Reset and set up fresh mocks
-      prisma.progressEntry.aggregate.mockReset();
-      prisma.progressEntry.groupBy.mockReset();
+      prisma.userProgress.aggregate.mockReset();
+      prisma.userProgress.groupBy.mockReset();
       
-      prisma.progressEntry.aggregate.mockResolvedValue({
+      prisma.userProgress.aggregate.mockResolvedValue({
         _count: { id: 5 },
         _sum: { durationMinutes: 150 },
         _avg: { durationMinutes: 30 },
       });
       
-      prisma.progressEntry.groupBy.mockResolvedValue([]);
+      prisma.userProgress.groupBy.mockResolvedValue([]);
 
       const result = await QueryOptimizer.getUserStatsOptimized(userId);
 
