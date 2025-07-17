@@ -1,44 +1,9 @@
-import Redis from 'ioredis';
-import { mockCacheService } from './mock-cache';
+import { CACHE_KEYS, CACHE_TTL } from './cache';
 
-// Check if we should use mock cache
-const USE_MOCK_CACHE = process.env.USE_MOCK_CACHE === 'true' || process.env.NODE_ENV === 'development';
+// In-memory cache for development
+const memoryCache: Record<string, { value: any; expiry: number }> = {};
 
-// Redis client configuration (only used if not mocking)
-const redis = USE_MOCK_CACHE ? null : new Redis({
-  host: process.env.REDIS_HOST || 'localhost',
-  port: parseInt(process.env.REDIS_PORT || '6379'),
-  password: process.env.REDIS_PASSWORD,
-  maxRetriesPerRequest: 3,
-  lazyConnect: true,
-});
-
-// Cache key prefixes for different data types
-export const CACHE_KEYS = {
-  USER_PROGRESS: 'user_progress',
-  USER_STATS: 'user_stats',
-  BODY_AREA_STATS: 'body_area_stats',
-  ACHIEVEMENTS: 'achievements',
-  COMMUNITY_STATS: 'community_stats',
-  INSIGHTS: 'insights',
-  STREAKS: 'streaks',
-} as const;
-
-// Cache TTL values (in seconds)
-export const CACHE_TTL = {
-  SHORT: 300, // 5 minutes
-  MEDIUM: 1800, // 30 minutes
-  LONG: 3600, // 1 hour
-  DAILY: 86400, // 24 hours
-} as const;
-
-export class CacheService {
-  private redis: Redis;
-
-  constructor() {
-    this.redis = redis;
-  }
-
+export class MockCacheService {
   /**
    * Generate cache key with prefix and identifier
    */
@@ -51,8 +16,8 @@ export class CacheService {
    */
   async set(key: string, value: any, ttl: number = CACHE_TTL.MEDIUM): Promise<void> {
     try {
-      const serializedValue = JSON.stringify(value);
-      await this.redis.setex(key, ttl, serializedValue);
+      const expiry = Date.now() + ttl * 1000;
+      memoryCache[key] = { value, expiry };
     } catch (error) {
       console.error('Cache set error:', error);
       // Fail silently to not break the application
@@ -64,9 +29,16 @@ export class CacheService {
    */
   async get<T>(key: string): Promise<T | null> {
     try {
-      const value = await this.redis.get(key);
-      if (!value) return null;
-      return JSON.parse(value) as T;
+      const cached = memoryCache[key];
+      if (!cached) return null;
+      
+      // Check if expired
+      if (cached.expiry < Date.now()) {
+        delete memoryCache[key];
+        return null;
+      }
+      
+      return cached.value as T;
     } catch (error) {
       console.error('Cache get error:', error);
       return null;
@@ -78,7 +50,7 @@ export class CacheService {
    */
   async delete(key: string): Promise<void> {
     try {
-      await this.redis.del(key);
+      delete memoryCache[key];
     } catch (error) {
       console.error('Cache delete error:', error);
     }
@@ -89,10 +61,12 @@ export class CacheService {
    */
   async deletePattern(pattern: string): Promise<void> {
     try {
-      const keys = await this.redis.keys(pattern);
-      if (keys.length > 0) {
-        await this.redis.del(...keys);
-      }
+      const regex = new RegExp(pattern.replace('*', '.*'));
+      Object.keys(memoryCache).forEach(key => {
+        if (regex.test(key)) {
+          delete memoryCache[key];
+        }
+      });
     } catch (error) {
       console.error('Cache delete pattern error:', error);
     }
@@ -232,22 +206,16 @@ export class CacheService {
    * Health check for Redis connection
    */
   async healthCheck(): Promise<boolean> {
-    try {
-      const result = await this.redis.ping();
-      return result === 'PONG';
-    } catch (error) {
-      console.error('Redis health check failed:', error);
-      return false;
-    }
+    return true; // Always healthy for mock
   }
 
   /**
    * Close Redis connection
    */
   async disconnect(): Promise<void> {
-    await this.redis.disconnect();
+    // No-op for mock
   }
 }
 
-// Export singleton instance - use mock in development
-export const cacheService = USE_MOCK_CACHE ? mockCacheService : new CacheService();
+// Export singleton instance
+export const mockCacheService = new MockCacheService();

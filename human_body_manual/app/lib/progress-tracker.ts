@@ -1,13 +1,16 @@
-import { 
-  ProgressEntry, 
-  ExerciseCompletion, 
-  UserProgress, 
-  StreakData, 
+import {
+  ProgressEntry,
+  ExerciseCompletion,
+  UserProgress,
+  StreakData,
   BodyAreaStats,
   BodyAreaType,
   DifficultyLevel,
-  DateRange
+  DateRange,
+  Achievement
 } from './types';
+
+// Import directly to allow Jest mocking
 import { prisma } from './prisma';
 import { cacheService } from './cache';
 import { QueryOptimizer } from './query-optimizer';
@@ -18,7 +21,7 @@ export class ProgressTracker {
    * Record a completed exercise session with caching and background job integration
    */
   static async recordCompletion(
-    userId: string, 
+    userId: string,
     exerciseData: ExerciseCompletion
   ): Promise<ProgressEntry> {
     try {
@@ -26,6 +29,11 @@ export class ProgressTracker {
         throw new Error('User ID is required');
       }
 
+      if (!exerciseData.exerciseId) {
+        throw new Error('Exercise ID is required');
+      }
+
+      // Create the progress entry
       const progressEntry = await prisma.userProgress.create({
         data: {
           userId,
@@ -60,6 +68,7 @@ export class ProgressTracker {
         console.warn('Background job scheduling failed:', error);
       }
 
+      // Format the result
       const result: ProgressEntry = {
         id: progressEntry.id,
         userId: progressEntry.userId,
@@ -86,13 +95,13 @@ export class ProgressTracker {
    * Get comprehensive user progress data with caching optimization
    */
   static async getUserProgress(
-    userId: string, 
+    userId: string,
     timeRange?: DateRange
   ): Promise<UserProgress> {
     try {
       // Try to get from cache first
       const cacheKey = `user_progress_comprehensive:${userId}:${timeRange ? JSON.stringify(timeRange) : 'all'}`;
-      
+
       try {
         const cached = await cacheService.get<UserProgress>(cacheKey);
         if (cached) {
@@ -154,24 +163,32 @@ export class ProgressTracker {
         take: 10,
       });
 
+      // Process achievements safely
+      const processedAchievements: Achievement[] = recentAchievements && recentAchievements.length > 0
+        ? recentAchievements.map((ua: any) => {
+          if (!ua || !ua.achievement) return null;
+          return {
+            id: ua.achievement.id,
+            name: ua.achievement.name,
+            description: ua.achievement.description,
+            category: ua.achievement.category as any,
+            criteria: ua.achievement.criteria as any,
+            badgeIcon: ua.achievement.badgeIcon || '',
+            points: ua.achievement.points,
+            rarity: ua.achievement.rarity as any,
+            createdAt: ua.achievement.createdAt,
+          };
+        }).filter(Boolean) as Achievement[]
+        : [];
+
       const result: UserProgress = {
         userId,
         totalSessions,
         totalMinutes,
         currentStreak: streakData?.currentCount || 0,
         longestStreak: streakData?.bestCount || 0,
-        bodyAreaStats,
-        recentAchievements: recentAchievements.map((ua: any) => ({
-          id: ua.achievement.id,
-          name: ua.achievement.name,
-          description: ua.achievement.description,
-          category: ua.achievement.category as any,
-          criteria: ua.achievement.criteria as any,
-          badgeIcon: ua.achievement.badgeIcon || '',
-          points: ua.achievement.points,
-          rarity: ua.achievement.rarity as any,
-          createdAt: ua.achievement.createdAt,
-        })),
+        bodyAreaStats: bodyAreaStats || [],
+        recentAchievements: processedAchievements,
         weeklyGoal: 7, // Default weekly goal
         weeklyProgress,
         lastActivity: lastActivity?.completedAt || new Date(),
@@ -212,13 +229,17 @@ export class ProgressTracker {
         where: { userId },
       });
 
+      if (!streaks || streaks.length === 0) {
+        return [];
+      }
+
       return streaks.map((streak: any) => ({
         userId: streak.userId,
         streakType: streak.streakType as any,
         currentCount: streak.currentCount,
         bestCount: streak.bestCount,
         lastActivityDate: streak.lastActivityDate || undefined,
-        startedAt: streak.startedAt,
+        startedAt: streak.startedAt || new Date(),
         isActive: ProgressTracker.isStreakActive(streak.lastActivityDate, streak.streakType as any),
       }));
     } catch (error) {
@@ -231,74 +252,109 @@ export class ProgressTracker {
    * Get body area specific statistics
    */
   static async getBodyAreaStats(userId: string): Promise<BodyAreaStats[]> {
-    const bodyAreas: BodyAreaType[] = [
-      'nervensystem', 'hormone', 'zirkadian', 'mikrobiom', 
-      'bewegung', 'fasten', 'kaelte', 'licht'
-    ];
+    try {
+      const bodyAreas: BodyAreaType[] = [
+        'nervensystem', 'hormone', 'zirkadian', 'mikrobiom',
+        'bewegung', 'fasten', 'kaelte', 'licht'
+      ];
 
-    const stats: BodyAreaStats[] = [];
+      const stats: BodyAreaStats[] = [];
 
-    for (const bodyArea of bodyAreas) {
-      const areaProgress = await prisma.userProgress.findMany({
-        where: { userId, bodyArea },
-        orderBy: { completedAt: 'desc' },
-      });
+      for (const bodyArea of bodyAreas) {
+        try {
+          const areaProgress = await prisma.userProgress.findMany({
+            where: { userId, bodyArea },
+            orderBy: { completedAt: 'desc' },
+          });
 
-      if (areaProgress.length === 0) {
-        stats.push({
-          bodyArea,
-          totalSessions: 0,
-          totalMinutes: 0,
-          averageSessionDuration: 0,
-          completionRate: 0,
-          lastPracticed: new Date(0),
-          favoriteExercises: [],
-          consistencyScore: 0,
-          masteryLevel: 'beginner',
-        });
-        continue;
+          if (!areaProgress || areaProgress.length === 0) {
+            stats.push({
+              bodyArea,
+              totalSessions: 0,
+              totalMinutes: 0,
+              averageSessionDuration: 0,
+              completionRate: 0,
+              lastPracticed: new Date(0),
+              favoriteExercises: [],
+              consistencyScore: 0,
+              masteryLevel: 'beginner',
+            });
+            continue;
+          }
+
+          const totalSessions = areaProgress.length;
+          const totalMinutes = areaProgress.reduce((sum: number, p: any) => sum + (p.durationMinutes || 0), 0);
+          const averageSessionDuration = totalMinutes / totalSessions;
+
+          // Calculate favorite exercises (most practiced)
+          const exerciseCounts = areaProgress.reduce((acc: Record<string, number>, p: any) => {
+            acc[p.exerciseId] = (acc[p.exerciseId] || 0) + 1;
+            return acc;
+          }, {} as Record<string, number>);
+
+          const favoriteExercises = Object.entries(exerciseCounts)
+            .sort(([, a], [, b]) => (b as number) - (a as number))
+            .slice(0, 3)
+            .map(([exerciseId]) => exerciseId);
+
+          // Calculate consistency score (sessions in last 30 days / 30)
+          const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+          const recentSessions = areaProgress.filter((p: any) => p.completedAt >= thirtyDaysAgo).length;
+          const consistencyScore = Math.min(recentSessions / 30, 1);
+
+          // Determine mastery level based on total sessions
+          let masteryLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert' = 'beginner';
+          if (totalSessions >= 50) masteryLevel = 'expert';
+          else if (totalSessions >= 25) masteryLevel = 'advanced';
+          else if (totalSessions >= 10) masteryLevel = 'intermediate';
+
+          stats.push({
+            bodyArea,
+            totalSessions,
+            totalMinutes,
+            averageSessionDuration,
+            completionRate: 1, // For now, assume 100% completion rate
+            lastPracticed: areaProgress[0].completedAt,
+            favoriteExercises,
+            consistencyScore,
+            masteryLevel,
+          });
+        } catch (error) {
+          console.warn(`Error processing body area ${bodyArea}:`, error);
+          // Add default stats for this body area to ensure we return all areas
+          stats.push({
+            bodyArea,
+            totalSessions: 0,
+            totalMinutes: 0,
+            averageSessionDuration: 0,
+            completionRate: 0,
+            lastPracticed: new Date(0),
+            favoriteExercises: [],
+            consistencyScore: 0,
+            masteryLevel: 'beginner',
+          });
+        }
       }
 
-      const totalSessions = areaProgress.length;
-      const totalMinutes = areaProgress.reduce((sum: number, p: any) => sum + (p.durationMinutes || 0), 0);
-      const averageSessionDuration = totalMinutes / totalSessions;
-
-      // Calculate favorite exercises (most practiced)
-      const exerciseCounts = areaProgress.reduce((acc: Record<string, number>, p: any) => {
-        acc[p.exerciseId] = (acc[p.exerciseId] || 0) + 1;
-        return acc;
-      }, {} as Record<string, number>);
-
-      const favoriteExercises = Object.entries(exerciseCounts)
-        .sort(([,a], [,b]) => (b as number) - (a as number))
-        .slice(0, 3)
-        .map(([exerciseId]) => exerciseId);
-
-      // Calculate consistency score (sessions in last 30 days / 30)
-      const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
-      const recentSessions = areaProgress.filter((p: any) => p.completedAt >= thirtyDaysAgo).length;
-      const consistencyScore = Math.min(recentSessions / 30, 1);
-
-      // Determine mastery level based on total sessions
-      let masteryLevel: 'beginner' | 'intermediate' | 'advanced' | 'expert' = 'beginner';
-      if (totalSessions >= 50) masteryLevel = 'expert';
-      else if (totalSessions >= 25) masteryLevel = 'advanced';
-      else if (totalSessions >= 10) masteryLevel = 'intermediate';
-
-      stats.push({
-        bodyArea,
-        totalSessions,
-        totalMinutes,
-        averageSessionDuration,
-        completionRate: 1, // For now, assume 100% completion rate
-        lastPracticed: areaProgress[0].completedAt,
-        favoriteExercises,
-        consistencyScore,
-        masteryLevel,
-      });
+      return stats;
+    } catch (error) {
+      console.error('Error getting body area stats:', error);
+      // Return empty array with default stats for all body areas
+      return [
+        'nervensystem', 'hormone', 'zirkadian', 'mikrobiom',
+        'bewegung', 'fasten', 'kaelte', 'licht'
+      ].map(area => ({
+        bodyArea: area as BodyAreaType,
+        totalSessions: 0,
+        totalMinutes: 0,
+        averageSessionDuration: 0,
+        completionRate: 0,
+        lastPracticed: new Date(0),
+        favoriteExercises: [],
+        consistencyScore: 0,
+        masteryLevel: 'beginner',
+      }));
     }
-
-    return stats;
   }
 
   /**
@@ -342,13 +398,14 @@ export class ProgressTracker {
           currentCount: 1,
           bestCount: 1,
           lastActivityDate: today,
+          startedAt: today,
         },
       });
       return;
     }
 
     const lastActivity = existingStreak.lastActivityDate;
-    
+
     if (!lastActivity) {
       // Reset streak
       await prisma.userStreak.update({
@@ -419,37 +476,46 @@ export class ProgressTracker {
     timeRange?: DateRange,
     bodyArea?: BodyAreaType
   ): Promise<ProgressEntry[]> {
-    const whereClause: any = { userId };
-    
-    if (timeRange?.from || timeRange?.to) {
-      whereClause.completedAt = {};
-      if (timeRange.from) whereClause.completedAt.gte = timeRange.from;
-      if (timeRange.to) whereClause.completedAt.lte = timeRange.to;
+    try {
+      const whereClause: any = { userId };
+
+      if (timeRange?.from || timeRange?.to) {
+        whereClause.completedAt = {};
+        if (timeRange.from) whereClause.completedAt.gte = timeRange.from;
+        if (timeRange.to) whereClause.completedAt.lte = timeRange.to;
+      }
+
+      if (bodyArea) {
+        whereClause.bodyArea = bodyArea;
+      }
+
+      const entries = await prisma.userProgress.findMany({
+        where: whereClause,
+        orderBy: { completedAt: 'desc' },
+      });
+
+      if (!entries || entries.length === 0) {
+        return [];
+      }
+
+      return entries.map((entry: any) => ({
+        id: entry.id,
+        userId: entry.userId,
+        exerciseId: entry.exerciseId,
+        bodyArea: entry.bodyArea as BodyAreaType,
+        completedAt: entry.completedAt,
+        durationMinutes: entry.durationMinutes || undefined,
+        difficultyLevel: entry.difficultyLevel as DifficultyLevel,
+        sessionNotes: entry.sessionNotes || undefined,
+        biometricData: entry.biometricData ? JSON.parse(entry.biometricData as string) : undefined,
+        mood: entry.mood as any,
+        energyLevel: entry.energyLevel as any,
+        createdAt: entry.createdAt,
+      }));
+    } catch (error) {
+      console.error('Error getting progress entries:', error);
+      return [];
     }
-
-    if (bodyArea) {
-      whereClause.bodyArea = bodyArea;
-    }
-
-    const entries = await prisma.userProgress.findMany({
-      where: whereClause,
-      orderBy: { completedAt: 'desc' },
-    });
-
-    return entries.map((entry: any) => ({
-      id: entry.id,
-      userId: entry.userId,
-      exerciseId: entry.exerciseId,
-      bodyArea: entry.bodyArea as BodyAreaType,
-      completedAt: entry.completedAt,
-      durationMinutes: entry.durationMinutes || undefined,
-      difficultyLevel: entry.difficultyLevel as DifficultyLevel,
-      sessionNotes: entry.sessionNotes || undefined,
-      biometricData: entry.biometricData ? JSON.parse(entry.biometricData as string) : undefined,
-      mood: entry.mood as any,
-      energyLevel: entry.energyLevel as any,
-      createdAt: entry.createdAt,
-    }));
   }
 
   /**
@@ -462,19 +528,41 @@ export class ProgressTracker {
     durationMinutes?: number,
     difficultyLevel: DifficultyLevel = 'Anfänger'
   ): Promise<ProgressEntry> {
-    return ProgressTracker.recordCompletion(userId, {
-      exerciseId,
-      bodyArea,
-      durationMinutes,
-      difficultyLevel,
-    });
+    try {
+      return await ProgressTracker.recordCompletion(userId, {
+        exerciseId,
+        bodyArea,
+        durationMinutes,
+        difficultyLevel,
+      });
+    } catch (error) {
+      console.error('Error in markExerciseCompleted:', error);
+      throw error;
+    }
   }
 
   /**
    * Get progress data (legacy function for compatibility)
    */
   static async getProgressData(userId: string): Promise<UserProgress> {
-    return ProgressTracker.getUserProgress(userId);
+    try {
+      return await ProgressTracker.getUserProgress(userId);
+    } catch (error) {
+      console.error('Error in getProgressData:', error);
+      // Return default progress data on error
+      return {
+        userId,
+        totalSessions: 0,
+        totalMinutes: 0,
+        currentStreak: 0,
+        longestStreak: 0,
+        bodyAreaStats: [],
+        recentAchievements: [],
+        weeklyGoal: 7,
+        weeklyProgress: 0,
+        lastActivity: new Date(),
+      };
+    }
   }
 
   /**

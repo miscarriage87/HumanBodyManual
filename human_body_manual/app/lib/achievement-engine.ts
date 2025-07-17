@@ -35,7 +35,7 @@ export class AchievementEngine {
       // Check each available achievement
       for (const achievement of availableAchievements) {
         const criteria = achievement.criteria as any;
-        const isEarned = await this.checkAchievementCriteria(userId, criteria, progressData);
+        const isEarned = await AchievementEngine.checkAchievementCriteria(userId, criteria, progressData);
 
         if (isEarned) {
           // Award the achievement
@@ -44,9 +44,9 @@ export class AchievementEngine {
               userId,
               achievementId: achievement.id,
               progressSnapshot: {
-                totalSessions: await this.getTotalSessions(userId),
-                currentStreak: await this.getCurrentStreak(userId),
-                bodyAreaProgress: await this.getBodyAreaProgress(userId),
+                totalSessions: await AchievementEngine.getTotalSessions(userId),
+                currentStreak: await AchievementEngine.getCurrentStreak(userId),
+                bodyAreaProgress: await AchievementEngine.getBodyAreaProgress(userId),
               },
             },
           });
@@ -124,7 +124,7 @@ export class AchievementEngine {
       }
 
       const criteria = achievement.criteria as any;
-      const currentProgress = await this.getCurrentProgressForCriteria(userId, criteria);
+      const currentProgress = await AchievementEngine.getCurrentProgressForCriteria(userId, criteria);
       const targetProgress = criteria.target;
       const progressPercentage = Math.min((currentProgress / targetProgress) * 100, 100);
 
@@ -175,7 +175,7 @@ export class AchievementEngine {
 
       for (const achievement of achievements) {
         try {
-          const progress = await this.calculateProgress(userId, achievement.id);
+          const progress = await AchievementEngine.calculateProgress(userId, achievement.id);
           progressList.push(progress);
         } catch (error) {
           console.warn(`Error calculating progress for achievement ${achievement.id}:`, error);
