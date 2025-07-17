@@ -322,11 +322,6 @@ global.Response = class MockResponse {
   }
 }
 
-
-
-// Mock JobScheduler (already mocked above in job-queue mock)
-// The JobScheduler is part of the job-queue module
-
 // Mock cache service with proper storage simulation
 let mockCacheStorage = new Map();
 
@@ -450,15 +445,6 @@ const mockAchievementEngine = {
   calculateProgress: jest.fn(),
   getAllAchievementsWithProgress: jest.fn(),
 };
-
-// Mock the modules for API tests
-jest.mock('./lib/progress-tracker', () => ({
-  ProgressTracker: mockProgressTracker,
-}));
-
-jest.mock('./lib/achievement-engine', () => ({
-  AchievementEngine: mockAchievementEngine,
-}));
 
 // Mock validation schemas
 const mockValidationSchemas = {

@@ -1,31 +1,4 @@
-// Simple debug script to test the test environment
-console.log('Testing the test environment...');
 
-// Create a simple test file that should pass
-const fs = require('fs');
-const path = require('path');
-
-const simpleTestContent = `
-import { describe, it, expect } from '@jest/globals';
-
-describe('Simple Test', () => {
-  it('should pass', () => {
-    expect(1 + 1).toBe(2);
-  });
-  
-  it('should handle async operations', async () => {
-    const result = await Promise.resolve(42);
-    expect(result).toBe(42);
-  });
-});
-`;
-
-const simpleTestPath = path.join(__dirname, '__tests__', 'simple-debug.test.ts');
-fs.writeFileSync(simpleTestPath, simpleTestContent);
-console.log('Created simple-debug.test.ts');
-
-// Create a mock implementation for the progress tracker
-const progressTrackerMockContent = `
 import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 
 // Mock the dependencies
@@ -137,10 +110,3 @@ describe('ProgressTracker Debug Test', () => {
     expect(result.exerciseId).toBe(mockExerciseData.exerciseId);
   });
 });
-`;
-
-const progressTrackerMockPath = path.join(__dirname, '__tests__', 'progress-tracker-debug.test.ts');
-fs.writeFileSync(progressTrackerMockPath, progressTrackerMockContent);
-console.log('Created progress-tracker-debug.test.ts');
-
-console.log('Run tests with: npm test -- progress-tracker-debug.test.ts');
