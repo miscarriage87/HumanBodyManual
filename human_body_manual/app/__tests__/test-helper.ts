@@ -1,6 +1,7 @@
 
 // Test helper functions and utilities
 import { ProgressEntry, UserProgress, StreakData, BodyAreaStats } from '../lib/types';
+import { jest } from '@jest/globals';
 
 // Mock data generators
 export const createMockProgressEntry = (overrides = {}): ProgressEntry => ({

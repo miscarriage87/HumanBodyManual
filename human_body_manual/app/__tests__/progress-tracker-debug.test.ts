@@ -70,6 +70,9 @@ jest.mock('../lib/query-optimizer', () => ({
 // Import after mocks are set up
 import { ProgressTracker } from '../lib/progress-tracker';
 
+// Make mockPrisma available to the ProgressTracker
+(global as any).mockPrisma = mockPrisma;
+
 describe('ProgressTracker Debug Test', () => {
   const mockUserId = 'test-user-123';
   const mockExerciseData = {

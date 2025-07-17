@@ -1,9 +1,9 @@
 // Debug script to test the progress tracker and achievement engine
 console.log('Testing progress tracker and achievement engine...');
 
-// Import the modules directly
-const { ProgressTracker } = require('./test-impl/progress-tracker');
-const { AchievementEngine } = require('./test-impl/achievement-engine');
+// Import the modules directly - using TypeScript files with ts-node
+const { ProgressTracker } = require('./lib/progress-tracker');
+const { AchievementEngine } = require('./lib/achievement-engine');
 
 async function runTests() {
   try {

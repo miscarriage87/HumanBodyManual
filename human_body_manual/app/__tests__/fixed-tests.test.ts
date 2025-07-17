@@ -37,6 +37,13 @@ import { ProgressTracker } from '../lib/progress-tracker';
 import { AchievementEngine } from '../lib/achievement-engine';
 import { prisma } from '../lib/prisma';
 
+// Make sure the mocks are properly set up
+beforeAll(() => {
+  // Make the mocks available globally
+  (global as any).mockPrisma = prisma;
+  (global as any).mockCacheService = mockCacheService;
+});
+
 describe('Fixed Tests', () => {
   const mockUserId = 'test-user-123';
   const mockExerciseData = {

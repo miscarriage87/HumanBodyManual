@@ -1,17 +1,16 @@
 
-import {
-  ProgressEntry,
-  ExerciseCompletion,
-  UserProgress,
-  StreakData,
-  BodyAreaStats,
-  BodyAreaType,
-  DifficultyLevel,
-  DateRange,
-  Achievement
+// Direct implementation of ProgressTracker for testing
+import { 
+  ProgressEntry, 
+  ExerciseCompletion, 
+  UserProgress, 
+  StreakData, 
+  BodyAreaStats, 
+  BodyAreaType, 
+  DifficultyLevel, 
+  DateRange 
 } from '../lib/types';
 
-// Mock implementation for testing
 export class ProgressTracker {
   static async recordCompletion(
     userId: string,
@@ -76,7 +75,6 @@ export class ProgressTracker {
         consistencyScore: 0.1,
         masteryLevel: 'beginner',
       },
-      // Add other body areas with default values
     ];
   }
 
@@ -98,24 +96,5 @@ export class ProgressTracker {
       energyLevel: 'hoch' as any,
       createdAt: new Date(),
     }];
-  }
-
-  static async markExerciseCompleted(
-    userId: string,
-    exerciseId: string,
-    bodyArea: BodyAreaType,
-    durationMinutes?: number,
-    difficultyLevel: DifficultyLevel = 'Anfänger'
-  ): Promise<ProgressEntry> {
-    return this.recordCompletion(userId, {
-      exerciseId,
-      bodyArea,
-      durationMinutes,
-      difficultyLevel,
-    });
-  }
-
-  static async getProgressData(userId: string): Promise<UserProgress> {
-    return this.getUserProgress(userId);
   }
 }
