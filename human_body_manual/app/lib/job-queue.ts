@@ -1,4 +1,4 @@
-import Bull from 'bull';
+import * as Bull from 'bull';
 import { prisma } from './prisma';
 import { cacheService } from './cache';
 

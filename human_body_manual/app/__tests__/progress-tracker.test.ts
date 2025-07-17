@@ -1,6 +1,4 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals';
-import { ProgressTracker } from '../lib/progress-tracker';
-import { ExerciseCompletion, BodyAreaType, DifficultyLevel } from '../lib/types';
 
 // Mock Prisma
 const mockPrisma = {
@@ -28,20 +26,12 @@ const mockPrisma = {
   $transaction: jest.fn(),
 };
 
-jest.mock('../lib/prisma', () => ({
-  prisma: mockPrisma,
-}));
-
 // Mock cache service
 const mockCacheService = {
   get: jest.fn(),
   set: jest.fn(),
   deletePattern: jest.fn(),
 };
-
-jest.mock('../lib/cache', () => ({
-  cacheService: mockCacheService,
-}));
 
 // Mock query optimizer
 const mockQueryOptimizer = {
@@ -51,10 +41,6 @@ const mockQueryOptimizer = {
   invalidateUserCaches: jest.fn(),
 };
 
-jest.mock('../lib/query-optimizer', () => ({
-  QueryOptimizer: mockQueryOptimizer,
-}));
-
 // Mock job scheduler
 const mockJobScheduler = {
   scheduleUserAnalytics: jest.fn(),
@@ -62,9 +48,26 @@ const mockJobScheduler = {
   scheduleInsightsGeneration: jest.fn(),
 };
 
+// Set up mocks before importing the module
+jest.mock('../lib/prisma', () => ({
+  prisma: mockPrisma,
+}));
+
+jest.mock('../lib/cache', () => ({
+  cacheService: mockCacheService,
+}));
+
+jest.mock('../lib/query-optimizer', () => ({
+  QueryOptimizer: mockQueryOptimizer,
+}));
+
 jest.mock('../lib/job-queue', () => ({
   JobScheduler: mockJobScheduler,
 }));
+
+// Import after mocks are set up
+import { ProgressTracker } from '../lib/progress-tracker';
+import { ExerciseCompletion, BodyAreaType, DifficultyLevel } from '../lib/types';
 
 describe('ProgressTracker', () => {
   const mockUserId = 'test-user-123';

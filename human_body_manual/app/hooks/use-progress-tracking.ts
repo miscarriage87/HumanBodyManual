@@ -1,8 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { ProgressTracker } from '@/lib/progress-tracker';
-import { AchievementEngine } from '@/lib/achievement-engine';
 import { 
   UserProgress, 
   ProgressEntry, 
@@ -36,7 +34,11 @@ export function useProgressTracking(userId?: string): UseProgressTrackingReturn 
     try {
       setLoading(true);
       setError(null);
-      const progress = await ProgressTracker.getUserProgress(effectiveUserId);
+      const response = await fetch(`/api/progress?userId=${effectiveUserId}`);
+      if (!response.ok) {
+        throw new Error('Failed to load progress');
+      }
+      const progress = await response.json();
       setUserProgress(progress);
     } catch (err) {
       console.error('Error loading user progress:', err);

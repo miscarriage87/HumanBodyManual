@@ -42,7 +42,7 @@ export class ProgressTracker {
       });
 
       // Update streaks after recording completion
-      await this.updateStreaks(userId);
+      await ProgressTracker.updateStreaks(userId);
 
       // Invalidate user-related caches
       try {
@@ -125,7 +125,7 @@ export class ProgressTracker {
       });
 
       // Get body area statistics
-      const bodyAreaStats = await this.getBodyAreaStats(userId);
+      const bodyAreaStats = await ProgressTracker.getBodyAreaStats(userId);
 
       // Calculate weekly progress
       const weekStart = new Date();
@@ -219,7 +219,7 @@ export class ProgressTracker {
         bestCount: streak.bestCount,
         lastActivityDate: streak.lastActivityDate || undefined,
         startedAt: streak.startedAt,
-        isActive: this.isStreakActive(streak.lastActivityDate, streak.streakType as any),
+        isActive: ProgressTracker.isStreakActive(streak.lastActivityDate, streak.streakType as any),
       }));
     } catch (error) {
       console.error('Error getting streak data:', error);
@@ -305,11 +305,16 @@ export class ProgressTracker {
    * Update user streaks after completing an exercise
    */
   private static async updateStreaks(userId: string): Promise<void> {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    try {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
 
-    // Update daily streak
-    await this.updateDailyStreak(userId, today);
+      // Update daily streak
+      await ProgressTracker.updateDailyStreak(userId, today);
+    } catch (error) {
+      console.warn('Error updating streaks:', error);
+      // Don't throw error to prevent breaking the main flow
+    }
   }
 
   /**
@@ -457,7 +462,7 @@ export class ProgressTracker {
     durationMinutes?: number,
     difficultyLevel: DifficultyLevel = 'Anfänger'
   ): Promise<ProgressEntry> {
-    return this.recordCompletion(userId, {
+    return ProgressTracker.recordCompletion(userId, {
       exerciseId,
       bodyArea,
       durationMinutes,
@@ -469,7 +474,7 @@ export class ProgressTracker {
    * Get progress data (legacy function for compatibility)
    */
   static async getProgressData(userId: string): Promise<UserProgress> {
-    return this.getUserProgress(userId);
+    return ProgressTracker.getUserProgress(userId);
   }
 
   /**

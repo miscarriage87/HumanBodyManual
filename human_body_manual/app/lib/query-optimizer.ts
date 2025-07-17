@@ -152,7 +152,7 @@ export class QueryOptimizer {
     }
 
     // Get current streaks from database
-    const streaks = await prisma.streak.findMany({
+    const streaks = await prisma.userStreak.findMany({
       where: { userId },
       orderBy: { currentCount: 'desc' },
     });
