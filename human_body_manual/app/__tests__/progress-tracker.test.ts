@@ -101,6 +101,14 @@ describe('ProgressTracker', () => {
 
       mockPrisma.userProgress.create.mockResolvedValue(mockProgressEntry);
       mockPrisma.userStreak.findUnique.mockResolvedValue(null);
+      mockPrisma.userStreak.create.mockResolvedValue({
+        id: 'streak-1',
+        userId: mockUserId,
+        streakType: 'daily',
+        currentCount: 1,
+        bestCount: 1,
+        lastActivityDate: new Date(),
+      });
 
       const result = await ProgressTracker.recordCompletion(mockUserId, mockExerciseData);
 
@@ -162,6 +170,14 @@ describe('ProgressTracker', () => {
 
       mockPrisma.userProgress.create.mockResolvedValue(mockProgressEntry);
       mockPrisma.userStreak.findUnique.mockResolvedValue(null);
+      mockPrisma.userStreak.create.mockResolvedValue({
+        id: 'streak-1',
+        userId: mockUserId,
+        streakType: 'daily',
+        currentCount: 1,
+        bestCount: 1,
+        lastActivityDate: new Date(),
+      });
 
       const result = await ProgressTracker.recordCompletion(mockUserId, exerciseWithBiometrics);
 
@@ -235,16 +251,20 @@ describe('ProgressTracker', () => {
         ],
       };
 
-      mockQueryOptimizer.getUserStatsOptimized.mockResolvedValue(mockUserStats);
-      mockQueryOptimizer.getStreaksOptimized.mockResolvedValue(mockStreakData);
-      mockQueryOptimizer.getUserAchievementsOptimized.mockResolvedValue(mockAchievements);
-
-      // Mock body area stats calculation
+      // Mock the direct database calls that getUserProgress now uses
+      mockPrisma.userProgress.count.mockResolvedValue(15);
+      mockPrisma.userProgress.aggregate.mockResolvedValue({
+        _sum: { durationMinutes: 450 }
+      });
+      mockPrisma.userStreak.findUnique.mockResolvedValue({
+        currentCount: 7,
+        bestCount: 12,
+      });
       mockPrisma.userProgress.findMany.mockResolvedValue([]);
-      mockPrisma.userProgress.count.mockResolvedValue(3);
       mockPrisma.userProgress.findFirst.mockResolvedValue({
         completedAt: new Date(),
       });
+      mockPrisma.userAchievement.findMany.mockResolvedValue([]);
 
       const result = await ProgressTracker.getUserProgress(mockUserId);
 

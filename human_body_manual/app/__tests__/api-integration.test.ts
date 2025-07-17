@@ -101,7 +101,10 @@ describe('API Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data).toEqual(mockUserProgress);
+      expect(data.data).toEqual({
+        ...mockUserProgress,
+        lastActivity: mockUserProgress.lastActivity.toISOString(),
+      });
       expect(ProgressTracker.getUserProgress).toHaveBeenCalledWith(mockUser.id, undefined);
     });
 
@@ -229,7 +232,11 @@ describe('API Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data.progressEntry).toEqual(mockProgressEntry);
+      expect(data.data.progressEntry).toEqual({
+        ...mockProgressEntry,
+        completedAt: mockProgressEntry.completedAt.toISOString(),
+        createdAt: mockProgressEntry.createdAt.toISOString(),
+      });
       expect(data.data.newAchievements).toEqual([]);
 
       expect(validateExerciseCompletion).toHaveBeenCalledWith(mockExerciseCompletion);
@@ -270,7 +277,10 @@ describe('API Integration Tests', () => {
       const data = await response.json();
 
       expect(response.status).toBe(200);
-      expect(data.data.newAchievements).toEqual(mockNewAchievements);
+      expect(data.data.newAchievements).toEqual(mockNewAchievements.map(achievement => ({
+        ...achievement,
+        createdAt: achievement.createdAt.toISOString(),
+      })));
     });
 
     it('should return 401 for unauthorized requests', async () => {
@@ -394,7 +404,14 @@ describe('API Integration Tests', () => {
 
       expect(response.status).toBe(200);
       expect(data.success).toBe(true);
-      expect(data.data).toEqual(mockUserAchievements);
+      expect(data.data).toEqual(mockUserAchievements.map(ua => ({
+        ...ua,
+        earnedAt: ua.earnedAt.toISOString(),
+        achievement: {
+          ...ua.achievement,
+          createdAt: ua.achievement.createdAt.toISOString(),
+        },
+      })));
       expect(AchievementEngine.getUserAchievements).toHaveBeenCalledWith(mockUser.id);
     });
 

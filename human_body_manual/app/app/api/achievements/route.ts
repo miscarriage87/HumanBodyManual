@@ -33,9 +33,19 @@ export async function GET(request: NextRequest) {
         user.id
       );
 
+      // Serialize dates properly
+      const serializedAchievements = userAchievements.map(ua => ({
+        ...ua,
+        earnedAt: ua.earnedAt.toISOString(),
+        achievement: {
+          ...ua.achievement,
+          createdAt: ua.achievement.createdAt.toISOString(),
+        },
+      }));
+
       return NextResponse.json({
         success: true,
-        data: userAchievements,
+        data: serializedAchievements,
       });
     }
 

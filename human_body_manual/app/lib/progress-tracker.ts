@@ -92,27 +92,39 @@ export class ProgressTracker {
     try {
       // Try to get from cache first
       const cacheKey = `user_progress_comprehensive:${userId}:${timeRange ? JSON.stringify(timeRange) : 'all'}`;
-      const cached = await cacheService.get<UserProgress>(cacheKey);
-      if (cached) {
-        return cached;
+      
+      try {
+        const cached = await cacheService.get<UserProgress>(cacheKey);
+        if (cached) {
+          return cached;
+        }
+      } catch (cacheError) {
+        console.warn('Cache retrieval failed:', cacheError);
       }
 
-      // Convert DateRange to the format expected by QueryOptimizer
-      const optimizerTimeRange = timeRange ? {
-        start: timeRange.from || new Date(0),
-        end: timeRange.to || new Date()
-      } : undefined;
+      // Get basic user stats directly from database
+      const totalSessions = await prisma.userProgress.count({
+        where: { userId },
+      });
 
-      // Use optimized queries
-      const [userStats, streakData, achievements] = await Promise.all([
-        QueryOptimizer.getUserStatsOptimized(userId, optimizerTimeRange),
-        QueryOptimizer.getStreaksOptimized(userId),
-        QueryOptimizer.getUserAchievementsOptimized(userId),
-      ]);
+      const totalMinutesResult = await prisma.userProgress.aggregate({
+        where: { userId },
+        _sum: { durationMinutes: true },
+      });
 
-      const dailyStreak = streakData.streaks?.find((s: any) => s.streakType === 'daily') || streakData.dailyStreak;
+      const totalMinutes = totalMinutesResult._sum.durationMinutes || 0;
 
-      // Get body area statistics (this could also be optimized)
+      // Get streak data
+      const streakData = await prisma.userStreak.findUnique({
+        where: {
+          userId_streakType: {
+            userId,
+            streakType: 'daily',
+          },
+        },
+      });
+
+      // Get body area statistics
       const bodyAreaStats = await this.getBodyAreaStats(userId);
 
       // Calculate weekly progress
@@ -134,14 +146,22 @@ export class ProgressTracker {
         select: { completedAt: true },
       });
 
+      // Get recent achievements
+      const recentAchievements = await prisma.userAchievement.findMany({
+        where: { userId },
+        include: { achievement: true },
+        orderBy: { earnedAt: 'desc' },
+        take: 10,
+      });
+
       const result: UserProgress = {
         userId,
-        totalSessions: userStats.totalSessions || 0,
-        totalMinutes: userStats.totalMinutes || 0,
-        currentStreak: dailyStreak?.currentCount || streakData.dailyStreak || 0,
-        longestStreak: dailyStreak?.bestCount || 0,
+        totalSessions,
+        totalMinutes,
+        currentStreak: streakData?.currentCount || 0,
+        longestStreak: streakData?.bestCount || 0,
         bodyAreaStats,
-        recentAchievements: (achievements.earned || []).slice(0, 10).map((ua: any) => ({
+        recentAchievements: recentAchievements.map((ua: any) => ({
           id: ua.achievement.id,
           name: ua.achievement.name,
           description: ua.achievement.description,
@@ -158,7 +178,11 @@ export class ProgressTracker {
       };
 
       // Cache the result for 15 minutes
-      await cacheService.set(cacheKey, result, 900);
+      try {
+        await cacheService.set(cacheKey, result, 900);
+      } catch (cacheError) {
+        console.warn('Cache storage failed:', cacheError);
+      }
 
       return result;
     } catch (error) {

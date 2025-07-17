@@ -3,6 +3,24 @@
 
 import '@testing-library/jest-dom'
 
+// Add custom Jest matchers
+expect.extend({
+  toBeOneOf(received, expected) {
+    const pass = expected.includes(received);
+    if (pass) {
+      return {
+        message: () => `expected ${received} not to be one of ${expected.join(', ')}`,
+        pass: true,
+      };
+    } else {
+      return {
+        message: () => `expected ${received} to be one of ${expected.join(', ')}`,
+        pass: false,
+      };
+    }
+  },
+});
+
 // Mock environment variables
 process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test'
 process.env.NEXTAUTH_SECRET = 'test-secret'

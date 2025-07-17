@@ -33,11 +33,23 @@ export async function POST(request: NextRequest) {
       progressEntry
     );
 
+    // Serialize dates properly
+    const serializedProgressEntry = {
+      ...progressEntry,
+      completedAt: progressEntry.completedAt.toISOString(),
+      createdAt: progressEntry.createdAt.toISOString(),
+    };
+
+    const serializedAchievements = newAchievements.map(achievement => ({
+      ...achievement,
+      createdAt: achievement.createdAt.toISOString(),
+    }));
+
     return NextResponse.json({
       success: true,
       data: {
-        progressEntry,
-        newAchievements,
+        progressEntry: serializedProgressEntry,
+        newAchievements: serializedAchievements,
       },
     });
 
