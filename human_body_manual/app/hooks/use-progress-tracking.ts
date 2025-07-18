@@ -50,16 +50,31 @@ export function useProgressTracking(userId?: string): UseProgressTrackingReturn 
 
   const recordCompletion = useCallback(async (exerciseData: ExerciseCompletion) => {
     try {
-      // Record the completion
-      const progressEntry = await ProgressTracker.recordCompletion(effectiveUserId, exerciseData);
+      // Record the completion via API
+      const response = await fetch('/api/progress', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: effectiveUserId,
+          ...exerciseData,
+        }),
+      });
       
-      // Check for new achievements
-      const newAchievements = await AchievementEngine.checkAchievements(effectiveUserId, progressEntry);
+      if (!response.ok) {
+        throw new Error('Failed to record completion');
+      }
+      
+      const result = await response.json();
       
       // Refresh user progress
       await loadUserProgress();
       
-      return { progressEntry, newAchievements };
+      return {
+        progressEntry: result.progressEntry,
+        newAchievements: result.newAchievements || [],
+      };
     } catch (err) {
       console.error('Error recording completion:', err);
       throw err;
@@ -68,7 +83,20 @@ export function useProgressTracking(userId?: string): UseProgressTrackingReturn 
 
   const getProgressEntries = useCallback(async (timeRange?: DateRange, bodyArea?: BodyAreaType) => {
     try {
-      return await ProgressTracker.getProgressEntries(effectiveUserId, timeRange, bodyArea);
+      const params = new URLSearchParams({
+        userId: effectiveUserId,
+      });
+      
+      if (timeRange?.from) params.append('from', timeRange.from.toISOString());
+      if (timeRange?.to) params.append('to', timeRange.to.toISOString());
+      if (bodyArea) params.append('bodyArea', bodyArea);
+      
+      const response = await fetch(`/api/progress/entries?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to get progress entries');
+      }
+      
+      return await response.json();
     } catch (err) {
       console.error('Error getting progress entries:', err);
       throw err;
@@ -108,16 +136,22 @@ export function useExerciseProgress(exerciseId: string, bodyArea: BodyAreaType, 
   const loadExerciseProgress = useCallback(async () => {
     try {
       setLoading(true);
-      const progressEntries = await ProgressTracker.getProgressEntries(
-        effectiveUserId,
-        undefined,
-        bodyArea
-      );
-
-      const exerciseEntries = progressEntries.filter(entry => entry.exerciseId === exerciseId);
+      
+      const params = new URLSearchParams({
+        userId: effectiveUserId,
+        bodyArea: bodyArea,
+      });
+      
+      const response = await fetch(`/api/progress/entries?${params}`);
+      if (!response.ok) {
+        throw new Error('Failed to get progress entries');
+      }
+      
+      const progressEntries = await response.json();
+      const exerciseEntries = progressEntries.filter((entry: ProgressEntry) => entry.exerciseId === exerciseId);
       
       if (exerciseEntries.length > 0) {
-        const totalDuration = exerciseEntries.reduce((sum, entry) => sum + (entry.durationMinutes || 0), 0);
+        const totalDuration = exerciseEntries.reduce((sum: number, entry: ProgressEntry) => sum + (entry.durationMinutes || 0), 0);
         const averageDuration = totalDuration / exerciseEntries.length;
         const lastCompleted = exerciseEntries[0]?.completedAt;
 

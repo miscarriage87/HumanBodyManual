@@ -188,7 +188,7 @@ export class RecommendationEngine {
     }
 
     // Add duration-based progression
-    const avgDuration = recentProgress.reduce((sum, p) => sum + (p.durationMinutes || 0), 0) / recentProgress.length;
+    const avgDuration = recentProgress.reduce((sum: number, p: any) => sum + (p.durationMinutes || 0), 0) / recentProgress.length;
     if (avgDuration > 0 && avgDuration < 15) {
       progressionSuggestions.push('Verlängere deine Sessions schrittweise auf 15-20 Minuten für tiefere Wirkung');
     }

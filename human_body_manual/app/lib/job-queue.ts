@@ -1,4 +1,4 @@
-import * as Bull from 'bull';
+import Bull from 'bull';
 import { prisma } from './prisma';
 import { cacheService } from './cache';
 
@@ -171,7 +171,7 @@ insightsQueue.process('motivation', async (job) => {
       data: {
         userId,
         insightType: 'motivation',
-        content: motivationInsights,
+        content: motivationInsights as any,
       },
     });
     
@@ -215,7 +215,7 @@ async function calculateUserStats(userId: string) {
     prisma.userProgress.count({ where: { userId } }),
     prisma.userProgress.aggregate({
       where: { userId },
-      _sum: { durationMinutes: true },
+      _sum: { durationMinutes: true as const },
     }),
     prisma.userStreak.findMany({ where: { userId } }),
     prisma.userProgress.findMany({
@@ -317,13 +317,13 @@ async function generateRecommendations(userId: string) {
   });
 
   // Analyze patterns and generate recommendations
-  const bodyAreaFrequency = recentProgress.reduce((acc, session) => {
+  const bodyAreaFrequency = recentProgress.reduce((acc: Record<string, number>, session: any) => {
     acc[session.bodyArea] = (acc[session.bodyArea] || 0) + 1;
     return acc;
   }, {} as Record<string, number>);
 
   const leastPracticedAreas = Object.entries(bodyAreaFrequency)
-    .sort(([, a], [, b]) => a - b)
+    .sort(([, a], [, b]) => (a as number) - (b as number))
     .slice(0, 3)
     .map(([area]) => area);
 
@@ -404,14 +404,14 @@ async function calculateOptimalPracticeTime(userId: string): Promise<string> {
     select: { completedAt: true },
   });
 
-  const hourCounts = sessions.reduce((acc, session) => {
+  const hourCounts = sessions.reduce((acc: Record<number, number>, session: any) => {
     const hour = session.completedAt.getHours();
     acc[hour] = (acc[hour] || 0) + 1;
     return acc;
   }, {} as Record<number, number>);
 
   const optimalHour = Object.entries(hourCounts)
-    .sort(([, a], [, b]) => b - a)[0]?.[0];
+    .sort(([, a], [, b]) => (b as number) - (a as number))[0]?.[0];
 
   return optimalHour ? `${optimalHour}:00` : '09:00';
 }

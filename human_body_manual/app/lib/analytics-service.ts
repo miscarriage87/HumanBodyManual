@@ -18,7 +18,7 @@ export class AnalyticsService {
     const insights: UserInsight[] = [];
 
     // Get user's progress data for analysis
-    const recentProgress = await prisma.progressEntry.findMany({
+    const recentProgress = await prisma.userProgress.findMany({
       where: {
         userId,
         completedAt: {
@@ -28,7 +28,7 @@ export class AnalyticsService {
       orderBy: { completedAt: 'desc' },
     });
 
-    const allProgress = await prisma.progressEntry.findMany({
+    const allProgress = await prisma.userProgress.findMany({
       where: { userId },
       orderBy: { completedAt: 'desc' },
     });
@@ -71,7 +71,7 @@ export class AnalyticsService {
     const endDate = timeRange.to || new Date();
 
     // Get daily session counts
-    const dailyProgress = await prisma.progressEntry.groupBy({
+    const dailyProgress = await prisma.userProgress.groupBy({
       by: ['completedAt'],
       where: {
         userId,
@@ -138,7 +138,7 @@ export class AnalyticsService {
     const recommendations: Recommendation[] = [];
 
     // Get user's recent activity
-    const recentProgress = await prisma.progressEntry.findMany({
+    const recentProgress = await prisma.userProgress.findMany({
       where: {
         userId,
         completedAt: {
@@ -295,7 +295,7 @@ export class AnalyticsService {
     userId: string, 
     recentProgress: any[]
   ): Promise<UserInsight | null> {
-    const currentStreak = await prisma.streak.findUnique({
+    const currentStreak = await prisma.userStreak.findUnique({
       where: {
         userId_streakType: {
           userId,

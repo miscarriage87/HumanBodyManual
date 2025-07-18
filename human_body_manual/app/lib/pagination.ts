@@ -81,7 +81,7 @@ export class PaginationService {
 
     // Execute queries in parallel
     const [data, total] = await Promise.all([
-      prisma.progressEntry.findMany({
+      prisma.userProgress.findMany({
         where: whereClause,
         orderBy: { completedAt: 'desc' },
         skip: offset,
@@ -98,7 +98,7 @@ export class PaginationService {
           energyLevel: true,
         },
       }),
-      prisma.progressEntry.count({ where: whereClause }),
+      prisma.userProgress.count({ where: whereClause }),
     ]);
 
     const totalPages = Math.ceil(total / validatedLimit);
@@ -168,7 +168,7 @@ export class PaginationService {
     }
 
     // Fetch one extra item to determine if there are more results
-    const data = await prisma.progressEntry.findMany({
+    const data = await prisma.userProgress.findMany({
       where: whereClause,
       orderBy: direction === 'forward' ? { completedAt: 'desc' } : { completedAt: 'asc' },
       take: validatedLimit + 1,
@@ -200,8 +200,8 @@ export class PaginationService {
         limit: validatedLimit,
         hasNext: direction === 'forward' ? hasMore : items.length > 0,
         hasPrev: direction === 'backward' ? hasMore : !!cursor,
-        nextCursor: direction === 'forward' && items.length > 0 ? items[items.length - 1].id : undefined,
-        prevCursor: direction === 'backward' && items.length > 0 ? items[0].id : undefined,
+        nextCursor: direction === 'forward' && items.length > 0 ? (items[items.length - 1] as any).id : undefined,
+        prevCursor: direction === 'backward' && items.length > 0 ? (items[0] as any).id : undefined,
       },
     };
 
@@ -452,7 +452,7 @@ export class PaginationService {
     };
 
     const [data, total] = await Promise.all([
-      prisma.progressEntry.findMany({
+      prisma.userProgress.findMany({
         where: whereClause,
         orderBy: { completedAt: 'desc' },
         skip: offset,
@@ -469,7 +469,7 @@ export class PaginationService {
           energyLevel: true,
         },
       }),
-      prisma.progressEntry.count({ where: whereClause }),
+      prisma.userProgress.count({ where: whereClause }),
     ]);
 
     const totalPages = Math.ceil(total / validatedLimit);

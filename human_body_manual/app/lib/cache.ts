@@ -33,7 +33,7 @@ export const CACHE_TTL = {
 } as const;
 
 export class CacheService {
-  private redis: Redis;
+  private redis: Redis | null;
 
   constructor() {
     this.redis = redis;
@@ -50,6 +50,7 @@ export class CacheService {
    * Set cache with TTL
    */
   async set(key: string, value: any, ttl: number = CACHE_TTL.MEDIUM): Promise<void> {
+    if (!this.redis) return; // Skip if using mock
     try {
       const serializedValue = JSON.stringify(value);
       await this.redis.setex(key, ttl, serializedValue);
@@ -63,6 +64,7 @@ export class CacheService {
    * Get cached value
    */
   async get<T>(key: string): Promise<T | null> {
+    if (!this.redis) return null; // Skip if using mock
     try {
       const value = await this.redis.get(key);
       if (!value) return null;
@@ -77,6 +79,7 @@ export class CacheService {
    * Delete cache entry
    */
   async delete(key: string): Promise<void> {
+    if (!this.redis) return; // Skip if using mock
     try {
       await this.redis.del(key);
     } catch (error) {
@@ -88,6 +91,7 @@ export class CacheService {
    * Delete multiple cache entries by pattern
    */
   async deletePattern(pattern: string): Promise<void> {
+    if (!this.redis) return; // Skip if using mock
     try {
       const keys = await this.redis.keys(pattern);
       if (keys.length > 0) {
@@ -232,6 +236,7 @@ export class CacheService {
    * Health check for Redis connection
    */
   async healthCheck(): Promise<boolean> {
+    if (!this.redis) return true; // Mock is always healthy
     try {
       const result = await this.redis.ping();
       return result === 'PONG';
@@ -245,6 +250,7 @@ export class CacheService {
    * Close Redis connection
    */
   async disconnect(): Promise<void> {
+    if (!this.redis) return; // Skip if using mock
     await this.redis.disconnect();
   }
 }

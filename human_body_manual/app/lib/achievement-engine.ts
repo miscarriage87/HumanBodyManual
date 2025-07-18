@@ -24,7 +24,7 @@ export class AchievementEngine {
         select: { achievementId: true },
       });
 
-      const earnedIds = new Set(earnedAchievementIds.map((ua: { achievementId: string }) => ua.achievementId));
+      const earnedIds = new Set(earnedAchievementIds.map((ua: any) => ua.achievementId));
 
       const availableAchievements = await prisma.achievement.findMany({
         where: {
@@ -34,7 +34,8 @@ export class AchievementEngine {
 
       // Check each available achievement
       for (const achievement of availableAchievements) {
-        const criteria = achievement.criteria as any;
+        const achievementData = achievement as any;
+        const criteria = achievementData.criteria as any;
         const isEarned = await AchievementEngine.checkAchievementCriteria(userId, criteria, progressData);
 
         if (isEarned) {
@@ -42,7 +43,7 @@ export class AchievementEngine {
           await prisma.userAchievement.create({
             data: {
               userId,
-              achievementId: achievement.id,
+              achievementId: achievementData.id,
               progressSnapshot: {
                 totalSessions: await AchievementEngine.getTotalSessions(userId),
                 currentStreak: await AchievementEngine.getCurrentStreak(userId),
@@ -52,15 +53,15 @@ export class AchievementEngine {
           });
 
           newAchievements.push({
-            id: achievement.id,
-            name: achievement.name,
-            description: achievement.description,
-            category: achievement.category as any,
-            criteria: achievement.criteria as any,
-            badgeIcon: achievement.badgeIcon || '',
-            points: achievement.points,
-            rarity: achievement.rarity as any,
-            createdAt: achievement.createdAt,
+            id: achievementData.id,
+            name: achievementData.name,
+            description: achievementData.description,
+            category: achievementData.category as any,
+            criteria: achievementData.criteria as any,
+            badgeIcon: achievementData.badgeIcon || '',
+            points: achievementData.points,
+            rarity: achievementData.rarity as any,
+            createdAt: achievementData.createdAt,
           });
         }
       }
@@ -175,10 +176,12 @@ export class AchievementEngine {
 
       for (const achievement of achievements) {
         try {
-          const progress = await AchievementEngine.calculateProgress(userId, achievement.id);
+          const achievementData = achievement as any;
+          const progress = await AchievementEngine.calculateProgress(userId, achievementData.id);
           progressList.push(progress);
         } catch (error) {
-          console.warn(`Error calculating progress for achievement ${achievement.id}:`, error);
+          const achievementData = achievement as any;
+          console.warn(`Error calculating progress for achievement ${achievementData.id}:`, error);
           // Continue with other achievements
         }
       }

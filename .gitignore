@@ -60,3 +60,34 @@ coverage/
 
 # Yarn Integrity file
 .yarn-integrity
+
+# TypeScript build info
+*.tsbuildinfo
+
+# Prisma
+prisma/migrations/
+.env.example
+
+# Testing
+coverage/
+.nyc_output/
+
+# Temporary files
+*.tmp
+*.temp
+debug-*.js
+fix-*.js
+test-*.js
+
+# Database
+*.db
+*.sqlite
+*.sqlite3
+
+# Redis dump
+dump.rdb
+
+# OS generated files
+Thumbs.db
+ehthumbs.db
+Desktop.ini

@@ -1,5 +1,5 @@
 
-import { describe, it, expect, jest, beforeEach, beforeAll } from '@jest/globals';
+import { describe, it, expect, jest, beforeEach } from '@jest/globals';
 import { 
   createMockProgressEntry, 
   createMockUserProgress,
@@ -8,9 +8,18 @@ import {
   setupMockCacheService
 } from './test-helper';
 
-// Direct implementations for testing
-import { ProgressTracker } from '../test-impl/progress-tracker';
-import { AchievementEngine } from '../test-impl/achievement-engine';
+// Mock the actual services
+jest.mock('../lib/prisma', () => ({
+  prisma: setupMockPrisma(),
+}));
+
+jest.mock('../lib/cache', () => ({
+  cacheService: setupMockCacheService(),
+}));
+
+// Import after mocks are set up
+import { ProgressTracker } from '../lib/progress-tracker';
+import { AchievementEngine } from '../lib/achievement-engine';
 
 describe('Comprehensive Tests', () => {
   const mockUserId = 'test-user-123';

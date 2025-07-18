@@ -19,6 +19,13 @@ interface UebungPageProps {
   }
 }
 
+// Helper function to get user ID (in a real app, this would come from auth)
+function getUserId(): string {
+  // In a production app, this would get the user ID from authentication context
+  // For now, we'll use a consistent mock user ID
+  return 'user-123';
+}
+
 export default function UebungPage({ params }: UebungPageProps) {
   const [showScientific, setShowScientific] = useState(false);
   const [showTimer, setShowTimer] = useState(false);
@@ -448,7 +455,7 @@ export default function UebungPage({ params }: UebungPageProps) {
         sessionDuration={sessionDuration}
         onSubmit={handleSessionSubmit}
         newAchievements={newAchievements}
-        userId="user-123" // TODO: Replace with actual user ID from auth
+        userId={getUserId()}
       />
     </div>
   )

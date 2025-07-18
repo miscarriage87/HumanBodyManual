@@ -252,13 +252,13 @@ export class QueryOptimizer {
       }),
     ]);
 
-    const earnedIds = new Set(userAchievements.map(ua => ua.achievementId));
-    const availableAchievements = allAchievements.filter(a => !earnedIds.has(a.id));
+    const earnedIds = new Set(userAchievements.map((ua: any) => ua.achievementId));
+    const availableAchievements = allAchievements.filter((a: any) => !earnedIds.has(a.id));
 
     const result = {
       earned: userAchievements,
       available: availableAchievements,
-      totalPoints: userAchievements.reduce((sum, ua) => sum + ua.achievement.points, 0),
+      totalPoints: userAchievements.reduce((sum: number, ua: any) => sum + (ua.achievement?.points || 0), 0),
       calculatedAt: new Date(),
     };
 
@@ -387,7 +387,7 @@ export class QueryOptimizer {
 
     const hasMore = progress.length > limit;
     const items = hasMore ? progress.slice(0, -1) : progress;
-    const nextCursor = hasMore ? items[items.length - 1].id : null;
+    const nextCursor = hasMore ? (items[items.length - 1] as any).id : null;
 
     const result = {
       items,

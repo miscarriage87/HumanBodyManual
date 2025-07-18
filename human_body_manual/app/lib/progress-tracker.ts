@@ -151,7 +151,7 @@ export class ProgressTracker {
       // Get last activity
       const lastActivity = await prisma.userProgress.findFirst({
         where: { userId },
-        orderBy: { completedAt: 'desc' },
+        orderBy: { completedAt: 'desc' as const },
         select: { completedAt: true },
       });
 
@@ -191,7 +191,7 @@ export class ProgressTracker {
         recentAchievements: processedAchievements,
         weeklyGoal: 7, // Default weekly goal
         weeklyProgress,
-        lastActivity: lastActivity?.completedAt || new Date(),
+        lastActivity: (lastActivity as any)?.completedAt || new Date(),
       };
 
       // Cache the result for 15 minutes
@@ -314,7 +314,7 @@ export class ProgressTracker {
             totalMinutes,
             averageSessionDuration,
             completionRate: 1, // For now, assume 100% completion rate
-            lastPracticed: areaProgress[0].completedAt,
+            lastPracticed: (areaProgress[0] as any).completedAt,
             favoriteExercises,
             consistencyScore,
             masteryLevel,

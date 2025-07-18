@@ -40,27 +40,27 @@ export async function GET(request: NextRequest) {
       case 'queues':
         // Get job queue statistics
         const [analyticsWaiting, insightsWaiting, cacheWaiting] = await Promise.all([
-          analyticsQueue.waiting(),
-          insightsQueue.waiting(),
-          cacheWarmupQueue.waiting(),
+          analyticsQueue.getWaiting(),
+          insightsQueue.getWaiting(),
+          cacheWarmupQueue.getWaiting(),
         ]);
 
         const [analyticsActive, insightsActive, cacheActive] = await Promise.all([
-          analyticsQueue.active(),
-          insightsQueue.active(),
-          cacheWarmupQueue.active(),
+          analyticsQueue.getActive(),
+          insightsQueue.getActive(),
+          cacheWarmupQueue.getActive(),
         ]);
 
         const [analyticsCompleted, insightsCompleted, cacheCompleted] = await Promise.all([
-          analyticsQueue.completed(),
-          insightsQueue.completed(),
-          cacheWarmupQueue.completed(),
+          analyticsQueue.getCompleted(),
+          insightsQueue.getCompleted(),
+          cacheWarmupQueue.getCompleted(),
         ]);
 
         const [analyticsFailed, insightsFailed, cacheFailed] = await Promise.all([
-          analyticsQueue.failed(),
-          insightsQueue.failed(),
-          cacheWarmupQueue.failed(),
+          analyticsQueue.getFailed(),
+          insightsQueue.getFailed(),
+          cacheWarmupQueue.getFailed(),
         ]);
 
         return NextResponse.json({
@@ -264,15 +264,15 @@ async function performComprehensiveAnalysis() {
     PerformanceMonitor.getAllStats(),
     cacheService.healthCheck(),
     Promise.all([
-      analyticsQueue.waiting(),
-      insightsQueue.waiting(),
-      cacheWarmupQueue.waiting(),
+      analyticsQueue.getWaiting(),
+      insightsQueue.getWaiting(),
+      cacheWarmupQueue.getWaiting(),
     ]),
   ]);
 
-  const totalQueuedJobs = queueStats.reduce((sum, jobs) => sum + jobs.length, 0);
+  const totalQueuedJobs = queueStats.reduce((sum: number, jobs: any[]) => sum + jobs.length, 0);
   const averageQueryTime = queryStats.length > 0 
-    ? queryStats.reduce((sum, stat) => sum + (stat?.averageMs || 0), 0) / queryStats.length
+    ? queryStats.reduce((sum: number, stat: any) => sum + (stat?.averageMs || 0), 0) / queryStats.length
     : 0;
 
   return {
