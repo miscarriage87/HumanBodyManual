@@ -26,7 +26,7 @@ const mockPrisma = {
     count: jest.fn(),
     groupBy: jest.fn(),
   },
-  progressEntry: {
+  userProgress: {
     count: jest.fn(),
     aggregate: jest.fn(),
     findMany: jest.fn(),
@@ -34,7 +34,7 @@ const mockPrisma = {
   userAchievement: {
     count: jest.fn(),
   },
-  streak: {
+  userStreak: {
     count: jest.fn(),
   },
   user: {
@@ -135,16 +135,16 @@ describe('MonitoringService', () => {
       };
 
       // Mock all the database calls
-      (mockPrisma.progressEntry.count as jest.Mock).mockResolvedValue(100);
-      (mockPrisma.progressEntry.aggregate as jest.Mock).mockResolvedValue({
+      (mockPrisma.userProgress.count as jest.Mock).mockResolvedValue(100);
+      (mockPrisma.userProgress.aggregate as jest.Mock).mockResolvedValue({
         _avg: { durationMinutes: 15.5 },
       });
       (mockPrisma.userAchievement.count as jest.Mock).mockResolvedValue(25);
-      (mockPrisma.progressEntry.findMany as jest.Mock).mockResolvedValue([
+      (mockPrisma.userProgress.findMany as jest.Mock).mockResolvedValue([
         { userId: 'user1' },
         { userId: 'user2' },
       ]);
-      (mockPrisma.streak.count as jest.Mock).mockResolvedValue(15);
+      (mockPrisma.userStreak.count as jest.Mock).mockResolvedValue(15);
       (mockPrisma.user.count as jest.Mock).mockResolvedValue(50);
       (mockPrisma.userEngagementMetric.findMany as jest.Mock).mockResolvedValue([
         { userId: 'user1' },

@@ -69,333 +69,6 @@ jest.mock('next/navigation', () => ({
   },
 }))
 
-// Mock Prisma Client
-const mockPrisma = {
-  user: {
-    findUnique: jest.fn(),
-    findMany: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-    delete: jest.fn(),
-    count: jest.fn().mockResolvedValue(0),
-  },
-  userProgress: {
-    findMany: jest.fn().mockResolvedValue([{
-      id: 'entry-1',
-      userId: 'test-user-123',
-      exerciseId: 'breathing-1',
-      bodyArea: 'nervensystem',
-      completedAt: new Date(),
-      durationMinutes: 15,
-      difficultyLevel: 'Anfänger',
-      sessionNotes: null,
-      biometricData: null,
-      mood: null,
-      energyLevel: null,
-      createdAt: new Date(),
-    }]),
-    findFirst: jest.fn().mockResolvedValue({
-      completedAt: new Date(),
-    }),
-    create: jest.fn().mockResolvedValue({
-      id: 'progress-123',
-      userId: 'test-user-123',
-      exerciseId: 'breathing-basics',
-      bodyArea: 'nervensystem',
-      completedAt: new Date(),
-      durationMinutes: 15,
-      difficultyLevel: 'Anfänger',
-      sessionNotes: 'Great session!',
-      biometricData: null,
-      mood: 'gut',
-      energyLevel: 'hoch',
-      createdAt: new Date(),
-    }),
-    update: jest.fn(),
-    delete: jest.fn(),
-    count: jest.fn().mockResolvedValue(5),
-    groupBy: jest.fn().mockResolvedValue([]),
-    aggregate: jest.fn().mockResolvedValue({ _count: { id: 5 }, _sum: { durationMinutes: 150 } }),
-  },
-  userStreak: {
-    findMany: jest.fn().mockResolvedValue([{
-      id: 'streak-1',
-      userId: 'test-user-123',
-      streakType: 'daily',
-      currentCount: 3,
-      bestCount: 5,
-      lastActivityDate: new Date(),
-      startedAt: new Date(),
-    }]),
-    findUnique: jest.fn().mockResolvedValue({
-      id: 'streak-1',
-      userId: 'test-user-123',
-      streakType: 'daily',
-      currentCount: 7,
-      bestCount: 12,
-      lastActivityDate: new Date(),
-      startedAt: new Date(),
-    }),
-    findFirst: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockResolvedValue({
-      id: 'mock-streak-id',
-      userId: 'mock-user-id',
-      streakType: 'daily',
-      currentCount: 1,
-      bestCount: 1,
-      lastActivityDate: new Date(),
-      startedAt: new Date(),
-    }),
-    update: jest.fn().mockResolvedValue({
-      id: 'mock-streak-id',
-      userId: 'mock-user-id',
-      streakType: 'daily',
-      currentCount: 2,
-      bestCount: 2,
-      lastActivityDate: new Date(),
-      startedAt: new Date(),
-    }),
-    delete: jest.fn(),
-    count: jest.fn().mockResolvedValue(0),
-  },
-  progressEntry: {
-    findMany: jest.fn().mockResolvedValue([]),
-    create: jest.fn().mockResolvedValue({}),
-    update: jest.fn().mockResolvedValue({}),
-    delete: jest.fn().mockResolvedValue({}),
-    count: jest.fn().mockResolvedValue(0),
-    groupBy: jest.fn().mockResolvedValue([]),
-    aggregate: jest.fn(),
-  },
-  achievement: {
-    findMany: jest.fn().mockResolvedValue([{
-      id: 'ach-first-steps',
-      name: 'First Steps',
-      description: 'Complete your first exercise',
-      category: 'milestone',
-      criteria: { type: 'total_sessions', target: 1 },
-      badgeIcon: '🎯',
-      points: 10,
-      rarity: 'common',
-      createdAt: new Date(),
-    }]),
-    findUnique: jest.fn().mockResolvedValue({
-      id: 'ach-sessions-10',
-      name: '10 Sessions',
-      description: 'Complete 10 exercise sessions',
-      category: 'progress',
-      criteria: { type: 'total_sessions', target: 10 },
-      badgeIcon: '🔥',
-      points: 50,
-      rarity: 'common',
-      createdAt: new Date(),
-    }),
-    create: jest.fn(),
-    count: jest.fn().mockResolvedValue(10),
-  },
-  userAchievement: {
-    findMany: jest.fn().mockResolvedValue([{
-      id: 'user-ach-1',
-      userId: 'test-user-123',
-      achievementId: 'ach-first-steps',
-      achievement: {
-        id: 'ach-first-steps',
-        name: 'First Steps',
-        description: 'Complete your first exercise',
-        category: 'milestone',
-        criteria: { type: 'total_sessions', target: 1 },
-        badgeIcon: '🎯',
-        points: 10,
-        rarity: 'common',
-        createdAt: new Date(),
-      },
-      earnedAt: new Date(),
-      progressSnapshot: {},
-    }]),
-    findUnique: jest.fn().mockResolvedValue(null),
-    create: jest.fn().mockResolvedValue({
-      id: 'user-ach-new',
-      userId: 'test-user-123',
-      achievementId: 'ach-first-steps',
-      earnedAt: new Date(),
-      progressSnapshot: {},
-    }),
-    count: jest.fn().mockResolvedValue(1),
-    groupBy: jest.fn().mockResolvedValue([]),
-  },
-  streak: {
-    findMany: jest.fn(),
-    findUnique: jest.fn(),
-    create: jest.fn(),
-    update: jest.fn(),
-  },
-  performanceMetric: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-  },
-  userEngagementMetric: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-  },
-  systemHealthMetric: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-  },
-  errorLog: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-  },
-  userInsight: {
-    create: jest.fn(),
-    findMany: jest.fn(),
-    updateMany: jest.fn(),
-  },
-  userCommunityAchievement: {
-    findMany: jest.fn().mockResolvedValue([]),
-    create: jest.fn(),
-    delete: jest.fn(),
-  },
-  challengeParticipant: {
-    findMany: jest.fn().mockResolvedValue([]),
-    create: jest.fn(),
-    delete: jest.fn(),
-  },
-  $transaction: jest.fn(),
-  $queryRaw: jest.fn(),
-  $executeRaw: jest.fn(),
-  $disconnect: jest.fn(),
-}
-
-jest.mock('./lib/prisma', () => ({
-  prisma: mockPrisma,
-}))
-
-// Mock Bull Queue and related dependencies
-jest.mock('bull', () => {
-  return jest.fn().mockImplementation(() => ({
-    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
-    process: jest.fn(),
-    on: jest.fn(),
-    close: jest.fn(),
-  }))
-})
-
-// Mock msgpackr (ES module dependency of Bull)
-jest.mock('msgpackr', () => ({
-  pack: jest.fn(),
-  unpack: jest.fn(),
-  Packr: jest.fn(),
-  Encoder: jest.fn(),
-}))
-
-// Mock job-queue module
-jest.mock('./lib/job-queue', () => ({
-  analyticsQueue: {
-    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
-    process: jest.fn(),
-    on: jest.fn(),
-    close: jest.fn(),
-  },
-  insightsQueue: {
-    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
-    process: jest.fn(),
-    on: jest.fn(),
-    close: jest.fn(),
-  },
-  cacheWarmupQueue: {
-    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
-    process: jest.fn(),
-    on: jest.fn(),
-    close: jest.fn(),
-  },
-  JobScheduler: {
-    scheduleUserAnalytics: jest.fn().mockResolvedValue(undefined),
-    scheduleBodyAreaAnalytics: jest.fn().mockResolvedValue(undefined),
-    scheduleCommunityAnalytics: jest.fn().mockResolvedValue(undefined),
-    scheduleInsightsGeneration: jest.fn().mockResolvedValue(undefined),
-    scheduleCacheWarmup: jest.fn().mockResolvedValue(undefined),
-  },
-}))
-
-// Mock Redis with in-memory storage
-jest.mock('ioredis', () => {
-  const mockStorage = new Map();
-  
-  return jest.fn().mockImplementation(() => ({
-    get: jest.fn().mockImplementation((key) => {
-      return Promise.resolve(mockStorage.get(key) || null);
-    }),
-    set: jest.fn().mockImplementation((key, value) => {
-      mockStorage.set(key, value);
-      return Promise.resolve('OK');
-    }),
-    setex: jest.fn().mockImplementation((key, ttl, value) => {
-      mockStorage.set(key, value);
-      return Promise.resolve('OK');
-    }),
-    del: jest.fn().mockImplementation((key) => {
-      const existed = mockStorage.has(key);
-      mockStorage.delete(key);
-      return Promise.resolve(existed ? 1 : 0);
-    }),
-    keys: jest.fn().mockImplementation((pattern) => {
-      const keys = Array.from(mockStorage.keys());
-      if (pattern === '*') return Promise.resolve(keys);
-      // Simple pattern matching for tests
-      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
-      return Promise.resolve(keys.filter(key => regex.test(key)));
-    }),
-    exists: jest.fn().mockImplementation((key) => {
-      return Promise.resolve(mockStorage.has(key) ? 1 : 0);
-    }),
-    expire: jest.fn().mockResolvedValue(1),
-    ping: jest.fn().mockResolvedValue('PONG'),
-    disconnect: jest.fn().mockResolvedValue(undefined),
-  }))
-})
-
-// Mock Next.js Request and Response
-global.Request = class MockRequest {
-  constructor(input, init = {}) {
-    this.url = typeof input === 'string' ? input : input.url
-    this.method = init.method || 'GET'
-    this.headers = new Map(Object.entries(init.headers || {}))
-    this.body = init.body
-  }
-  
-  async json() {
-    return JSON.parse(this.body || '{}')
-  }
-  
-  async text() {
-    return this.body || ''
-  }
-}
-
-global.Response = class MockResponse {
-  constructor(body, init = {}) {
-    this.body = body
-    this.status = init.status || 200
-    this.statusText = init.statusText || 'OK'
-    this.headers = new Map(Object.entries(init.headers || {}))
-  }
-  
-  static json(data, init = {}) {
-    return new MockResponse(JSON.stringify(data), {
-      ...init,
-      headers: { 'Content-Type': 'application/json', ...init.headers }
-    })
-  }
-  
-  async json() {
-    return JSON.parse(this.body)
-  }
-  
-  async text() {
-    return this.body
-  }
-}
-
 // Mock cache service with proper storage simulation
 let mockCacheStorage = new Map();
 
@@ -462,6 +135,355 @@ jest.mock('./lib/cache', () => ({
   cacheService: mockCacheService,
 }));
 
+// Mock Prisma Client with comprehensive mocking
+const mockPrisma = {
+  user: {
+    findUnique: jest.fn(),
+    findMany: jest.fn(),
+    create: jest.fn(),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  userProgress: {
+    findMany: jest.fn().mockResolvedValue([{
+      id: 'entry-1',
+      userId: 'test-user-123',
+      exerciseId: 'breathing-1',
+      bodyArea: 'nervensystem',
+      completedAt: new Date(),
+      durationMinutes: 15,
+      difficultyLevel: 'Anfänger',
+      sessionNotes: 'Great session!',
+      biometricData: null,
+      mood: 'gut',
+      energyLevel: 'hoch',
+      createdAt: new Date(),
+    }]),
+    findFirst: jest.fn().mockResolvedValue({
+      completedAt: new Date(),
+    }),
+    create: jest.fn().mockResolvedValue({
+      id: 'progress-123',
+      userId: 'test-user-123',
+      exerciseId: 'breathing-basics',
+      bodyArea: 'nervensystem',
+      completedAt: new Date(),
+      durationMinutes: 15,
+      difficultyLevel: 'Anfänger',
+      sessionNotes: 'Great session!',
+      biometricData: null,
+      mood: 'gut',
+      energyLevel: 'hoch',
+      createdAt: new Date(),
+    }),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(15),
+    groupBy: jest.fn().mockResolvedValue([]),
+    aggregate: jest.fn().mockResolvedValue({ _count: { id: 15 }, _sum: { durationMinutes: 300 } }),
+  },
+  userStreak: {
+    findMany: jest.fn().mockResolvedValue([{
+      id: 'streak-1',
+      userId: 'test-user-123',
+      streakType: 'daily',
+      currentCount: 3,
+      bestCount: 5,
+      lastActivityDate: new Date(),
+      startedAt: new Date(),
+    }]),
+    findUnique: jest.fn().mockResolvedValue({
+      id: 'streak-1',
+      userId: 'test-user-123',
+      streakType: 'daily',
+      currentCount: 7,
+      bestCount: 12,
+      lastActivityDate: new Date(),
+      startedAt: new Date(),
+    }),
+    findFirst: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({
+      id: 'mock-streak-id',
+      userId: 'mock-user-id',
+      streakType: 'daily',
+      currentCount: 1,
+      bestCount: 1,
+      lastActivityDate: new Date(),
+      startedAt: new Date(),
+    }),
+    update: jest.fn().mockResolvedValue({
+      id: 'mock-streak-id',
+      userId: 'mock-user-id',
+      streakType: 'daily',
+      currentCount: 2,
+      bestCount: 2,
+      lastActivityDate: new Date(),
+      startedAt: new Date(),
+    }),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  progressEntry: {
+    findMany: jest.fn().mockResolvedValue([{
+      id: 'entry-1',
+      userId: 'test-user-123',
+      exerciseId: 'breathing-1',
+      bodyArea: 'nervensystem',
+      completedAt: new Date(),
+      durationMinutes: 15,
+      difficultyLevel: 'Anfänger',
+      sessionNotes: 'Great session!',
+      biometricData: null,
+      mood: 'gut',
+      energyLevel: 'hoch',
+      createdAt: new Date(),
+    }]),
+    findFirst: jest.fn().mockResolvedValue({
+      completedAt: new Date(),
+    }),
+    create: jest.fn().mockResolvedValue({
+      id: 'progress-123',
+      userId: 'test-user-123',
+      exerciseId: 'breathing-basics',
+      bodyArea: 'nervensystem',
+      completedAt: new Date(),
+      durationMinutes: 15,
+      difficultyLevel: 'Anfänger',
+      sessionNotes: 'Great session!',
+      biometricData: null,
+      mood: 'gut',
+      energyLevel: 'hoch',
+      createdAt: new Date(),
+    }),
+    update: jest.fn(),
+    delete: jest.fn(),
+    count: jest.fn().mockResolvedValue(6),
+    groupBy: jest.fn().mockResolvedValue([]),
+    aggregate: jest.fn().mockResolvedValue({ _count: { id: 6 }, _sum: { durationMinutes: 180 } }),
+  },
+  streak: {
+    findUnique: jest.fn().mockResolvedValue({
+      currentCount: 7,
+      streakType: 'daily',
+    }),
+    findMany: jest.fn().mockResolvedValue([]),
+    create: jest.fn(),
+    update: jest.fn(),
+  },
+  achievement: {
+    findMany: jest.fn().mockResolvedValue([{
+      id: 'ach-first-steps',
+      name: 'First Steps',
+      description: 'Complete your first exercise',
+      category: 'milestone',
+      criteria: { type: 'total_sessions', target: 1 },
+      badgeIcon: '🎯',
+      points: 10,
+      rarity: 'common',
+      createdAt: new Date(),
+    }]),
+    findUnique: jest.fn().mockResolvedValue({
+      id: 'ach-sessions-10',
+      name: '10 Sessions',
+      description: 'Complete 10 exercise sessions',
+      category: 'progress',
+      criteria: { type: 'total_sessions', target: 10 },
+      badgeIcon: '🔥',
+      points: 50,
+      rarity: 'common',
+      createdAt: new Date(),
+    }),
+    create: jest.fn(),
+    count: jest.fn().mockResolvedValue(10),
+  },
+  userAchievement: {
+    findMany: jest.fn().mockResolvedValue([{
+      id: 'user-ach-1',
+      userId: 'test-user-123',
+      achievementId: 'ach-first-steps',
+      achievement: {
+        id: 'ach-first-steps',
+        name: 'First Steps',
+        description: 'Complete your first exercise',
+        category: 'milestone',
+        criteria: { type: 'total_sessions', target: 1 },
+        badgeIcon: '🎯',
+        points: 10,
+        rarity: 'common',
+        createdAt: new Date(),
+      },
+      earnedAt: new Date(),
+      progressSnapshot: {},
+    }]),
+    findUnique: jest.fn().mockResolvedValue(null),
+    create: jest.fn().mockResolvedValue({
+      id: 'user-ach-new',
+      userId: 'test-user-123',
+      achievementId: 'ach-first-steps',
+      earnedAt: new Date(),
+      progressSnapshot: {},
+    }),
+    count: jest.fn().mockResolvedValue(1),
+    groupBy: jest.fn().mockResolvedValue([]),
+  },
+  userInsight: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    updateMany: jest.fn(),
+  },
+  performanceMetric: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+  },
+  userEngagementMetric: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    groupBy: jest.fn().mockResolvedValue([]),
+  },
+  systemHealthMetric: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+  },
+  errorLog: {
+    create: jest.fn(),
+    findMany: jest.fn(),
+    count: jest.fn().mockResolvedValue(0),
+  },
+  $transaction: jest.fn(),
+  $queryRaw: jest.fn(),
+  $executeRaw: jest.fn(),
+  $disconnect: jest.fn(),
+}
+
+jest.mock('./lib/prisma', () => ({
+  prisma: mockPrisma,
+}))
+
+// Mock other dependencies
+jest.mock('bull', () => {
+  return jest.fn().mockImplementation(() => ({
+    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
+    process: jest.fn(),
+    on: jest.fn(),
+    close: jest.fn(),
+  }))
+})
+
+jest.mock('msgpackr', () => ({
+  pack: jest.fn(),
+  unpack: jest.fn(),
+  Packr: jest.fn(),
+  Encoder: jest.fn(),
+}))
+
+const mockJobScheduler = {
+  scheduleUserAnalytics: jest.fn().mockResolvedValue(undefined),
+  scheduleBodyAreaAnalytics: jest.fn().mockResolvedValue(undefined),
+  scheduleCommunityAnalytics: jest.fn().mockResolvedValue(undefined),
+  scheduleInsightsGeneration: jest.fn().mockResolvedValue(undefined),
+  scheduleCacheWarmup: jest.fn().mockResolvedValue(undefined),
+};
+
+jest.mock('./lib/job-queue', () => ({
+  analyticsQueue: {
+    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
+    process: jest.fn(),
+    on: jest.fn(),
+    close: jest.fn(),
+  },
+  insightsQueue: {
+    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
+    process: jest.fn(),
+    on: jest.fn(),
+    close: jest.fn(),
+  },
+  cacheWarmupQueue: {
+    add: jest.fn().mockResolvedValue({ id: 'mock-job-id' }),
+    process: jest.fn(),
+    on: jest.fn(),
+    close: jest.fn(),
+  },
+  JobScheduler: mockJobScheduler,
+}))
+
+jest.mock('ioredis', () => {
+  const mockStorage = new Map();
+  
+  return jest.fn().mockImplementation(() => ({
+    get: jest.fn().mockImplementation((key) => {
+      return Promise.resolve(mockStorage.get(key) || null);
+    }),
+    set: jest.fn().mockImplementation((key, value) => {
+      mockStorage.set(key, value);
+      return Promise.resolve('OK');
+    }),
+    setex: jest.fn().mockImplementation((key, ttl, value) => {
+      mockStorage.set(key, value);
+      return Promise.resolve('OK');
+    }),
+    del: jest.fn().mockImplementation((key) => {
+      const existed = mockStorage.has(key);
+      mockStorage.delete(key);
+      return Promise.resolve(existed ? 1 : 0);
+    }),
+    keys: jest.fn().mockImplementation((pattern) => {
+      const keys = Array.from(mockStorage.keys());
+      if (pattern === '*') return Promise.resolve(keys);
+      const regex = new RegExp(pattern.replace(/\*/g, '.*'));
+      return Promise.resolve(keys.filter(key => regex.test(key)));
+    }),
+    exists: jest.fn().mockImplementation((key) => {
+      return Promise.resolve(mockStorage.has(key) ? 1 : 0);
+    }),
+    expire: jest.fn().mockResolvedValue(1),
+    ping: jest.fn().mockResolvedValue('PONG'),
+    disconnect: jest.fn().mockResolvedValue(undefined),
+  }))
+})
+
+// Mock Next.js Request and Response
+global.Request = class MockRequest {
+  constructor(input, init = {}) {
+    this.url = typeof input === 'string' ? input : input.url
+    this.method = init.method || 'GET'
+    this.headers = new Map(Object.entries(init.headers || {}))
+    this.body = init.body
+  }
+  
+  async json() {
+    return JSON.parse(this.body || '{}')
+  }
+  
+  async text() {
+    return this.body || ''
+  }
+}
+
+global.Response = class MockResponse {
+  constructor(body, init = {}) {
+    this.body = body
+    this.status = init.status || 200
+    this.statusText = init.statusText || 'OK'
+    this.headers = new Map(Object.entries(init.headers || {}))
+  }
+  
+  static json(data, init = {}) {
+    return new MockResponse(JSON.stringify(data), {
+      ...init,
+      headers: { 'Content-Type': 'application/json', ...init.headers }
+    })
+  }
+  
+  async json() {
+    return JSON.parse(this.body)
+  }
+  
+  async text() {
+    return this.body
+  }
+}
+
 // Mock auth helpers
 const mockAuthHelpers = {
   getCurrentUser: jest.fn().mockResolvedValue(null),
@@ -482,9 +504,9 @@ jest.mock('./lib/auth-helper', () => mockAuthHelpers);
 // Mock query optimizer
 const mockQueryOptimizer = {
   getUserStatsOptimized: jest.fn().mockResolvedValue({
-    totalSessions: 0,
-    totalMinutes: 0,
-    averageSessionDuration: 0,
+    totalSessions: 15,
+    totalMinutes: 300,
+    averageSessionDuration: 20,
     bodyAreaStats: [],
     recentActivity: [],
   }),
@@ -501,134 +523,6 @@ jest.mock('./lib/query-optimizer', () => ({
   QueryOptimizer: mockQueryOptimizer,
 }));
 
-// Mock ProgressTracker class with proper static methods
-jest.mock('./lib/progress-tracker', () => ({
-  ProgressTracker: {
-    recordCompletion: jest.fn().mockResolvedValue({
-      id: 'progress-123',
-      userId: 'test-user-123',
-      exerciseId: 'breathing-basics',
-      bodyArea: 'nervensystem',
-      completedAt: new Date(),
-      durationMinutes: 15,
-      difficultyLevel: 'Anfänger',
-      sessionNotes: 'Great session!',
-      biometricData: undefined,
-      mood: 'gut',
-      energyLevel: 'hoch',
-      createdAt: new Date(),
-    }),
-    getUserProgress: jest.fn().mockResolvedValue({
-      userId: 'test-user-123',
-      totalSessions: 5,
-      totalMinutes: 150,
-      currentStreak: 7,
-      longestStreak: 12,
-      bodyAreaStats: [],
-      recentAchievements: [],
-      weeklyGoal: 7,
-      weeklyProgress: 3,
-      lastActivity: new Date(),
-    }),
-    getStreakData: jest.fn().mockResolvedValue([{
-      userId: 'test-user-123',
-      streakType: 'daily',
-      currentCount: 3,
-      bestCount: 5,
-      lastActivityDate: new Date(),
-      startedAt: new Date(),
-      isActive: true,
-    }]),
-    getBodyAreaStats: jest.fn().mockResolvedValue([]),
-    getProgressEntries: jest.fn().mockResolvedValue([{
-      id: 'entry-1',
-      userId: 'test-user-123',
-      exerciseId: 'breathing-1',
-      bodyArea: 'nervensystem',
-      completedAt: new Date(),
-      durationMinutes: 15,
-      difficultyLevel: 'Anfänger',
-      createdAt: new Date(),
-    }]),
-    markExerciseCompleted: jest.fn().mockResolvedValue({
-      id: 'progress-123',
-      userId: 'test-user-123',
-      exerciseId: 'breathing-basics',
-      bodyArea: 'nervensystem',
-      completedAt: new Date(),
-      durationMinutes: 10,
-      difficultyLevel: 'Anfänger',
-      createdAt: new Date(),
-    }),
-    getProgressData: jest.fn().mockResolvedValue({
-      userId: 'test-user-123',
-      totalSessions: 5,
-      totalMinutes: 150,
-      currentStreak: 0,
-      longestStreak: 0,
-      bodyAreaStats: [],
-      recentAchievements: [],
-      weeklyGoal: 7,
-      weeklyProgress: 0,
-      lastActivity: new Date(),
-    }),
-  },
-}));
-
-// Mock AchievementEngine class with proper static methods
-jest.mock('./lib/achievement-engine', () => ({
-  AchievementEngine: {
-    checkAchievements: jest.fn().mockResolvedValue([{
-      id: 'ach-first-steps',
-      name: 'First Steps',
-      description: 'Complete your first exercise',
-      category: 'milestone',
-      criteria: { type: 'total_sessions', target: 1 },
-      badgeIcon: '🎯',
-      points: 10,
-      rarity: 'common',
-      createdAt: new Date(),
-    }]),
-    getUserAchievements: jest.fn().mockResolvedValue([{
-      id: 'user-ach-1',
-      userId: 'test-user-123',
-      achievementId: 'ach-first-steps',
-      achievement: {
-        id: 'ach-first-steps',
-        name: 'First Steps',
-        description: 'Complete your first exercise',
-        category: 'milestone',
-        criteria: { type: 'total_sessions', target: 1 },
-        badgeIcon: '🎯',
-        points: 10,
-        rarity: 'common',
-        createdAt: new Date(),
-      },
-      earnedAt: new Date(),
-      progressSnapshot: {},
-    }]),
-    calculateProgress: jest.fn().mockResolvedValue({
-      achievementId: 'ach-sessions-10',
-      achievement: {
-        id: 'ach-sessions-10',
-        name: '10 Sessions',
-        description: 'Complete 10 exercise sessions',
-        category: 'progress',
-        criteria: { type: 'total_sessions', target: 10 },
-        badgeIcon: '🔥',
-        points: 50,
-        rarity: 'common',
-        createdAt: new Date(),
-      },
-      currentProgress: 6,
-      targetProgress: 10,
-      progressPercentage: 60,
-      isCompleted: false,
-    }),
-    getAllAchievementsWithProgress: jest.fn().mockResolvedValue([]),
-  },
-}));
-
 // Mock validation schemas
 const mockValidationSchemas = {
   validateExerciseCompletion: jest.fn().mockReturnValue({}),
@@ -638,6 +532,8 @@ const mockValidationSchemas = {
 
 jest.mock('./lib/validation-schemas', () => mockValidationSchemas);
 
+// Don't mock the classes themselves, just their dependencies
+
 // Make mocks available globally for tests
 global.mockPrisma = mockPrisma;
 global.mockCacheService = mockCacheService;
@@ -645,3 +541,4 @@ global.mockAuthHelpers = mockAuthHelpers;
 global.mockQueryOptimizer = mockQueryOptimizer;
 global.mockValidationSchemas = mockValidationSchemas;
 global.mockCacheStorage = mockCacheStorage;
+global.mockJobScheduler = mockJobScheduler;

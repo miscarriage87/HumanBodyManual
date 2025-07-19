@@ -60,10 +60,19 @@ jest.mock('../lib/validation-schemas', () => ({
   validateExerciseCompletion: jest.fn(),
 }));
 
+// Import the mocked classes
 import { ProgressTracker } from '../lib/progress-tracker';
 import { AchievementEngine } from '../lib/achievement-engine';
 import { getCurrentUser, getDemoUser } from '../lib/auth-helper';
 import { validateDateRange, validateExerciseCompletion } from '../lib/validation-schemas';
+
+// Type the mocks properly
+const mockProgressTracker = ProgressTracker as jest.Mocked<typeof ProgressTracker>;
+const mockAchievementEngine = AchievementEngine as jest.Mocked<typeof AchievementEngine>;
+const mockGetCurrentUser = getCurrentUser as jest.MockedFunction<typeof getCurrentUser>;
+const mockGetDemoUser = getDemoUser as jest.MockedFunction<typeof getDemoUser>;
+const mockValidateDate = validateDateRange as jest.MockedFunction<typeof validateDateRange>;
+const mockValidateExercise = validateExerciseCompletion as jest.MockedFunction<typeof validateExerciseCompletion>;
 
 describe('API Integration Tests', () => {
   const mockUser = {
@@ -93,7 +102,7 @@ describe('API Integration Tests', () => {
         lastActivity: new Date(),
       };
 
-      ProgressTracker.getUserProgress.mockResolvedValue(mockUserProgress);
+      (ProgressTracker.getUserProgress as jest.MockedFunction<typeof ProgressTracker.getUserProgress>).mockResolvedValue(mockUserProgress);
 
       const request = new MockNextRequest('http://localhost:3000/api/progress');
       const response = await getProgress(request);
@@ -114,8 +123,8 @@ describe('API Integration Tests', () => {
         to: new Date('2024-01-31'),
       };
 
-      validateDateRange.mockReturnValue(mockTimeRange);
-      ProgressTracker.getUserProgress.mockResolvedValue({
+      (validateDateRange as jest.MockedFunction<typeof validateDateRange>).mockReturnValue(mockTimeRange);
+      (ProgressTracker.getUserProgress as jest.MockedFunction<typeof ProgressTracker.getUserProgress>).mockResolvedValue({
         userId: mockUser.id,
         totalSessions: 5,
         totalMinutes: 150,
@@ -168,7 +177,7 @@ describe('API Integration Tests', () => {
     });
 
     it('should handle internal server errors', async () => {
-      ProgressTracker.getUserProgress.mockRejectedValue(new Error('Database connection failed'));
+      (ProgressTracker.getUserProgress as jest.MockedFunction<typeof ProgressTracker.getUserProgress>).mockRejectedValue(new Error('Database connection failed'));
 
       const request = new MockNextRequest('http://localhost:3000/api/progress');
       const response = await getProgress(request);
@@ -213,9 +222,9 @@ describe('API Integration Tests', () => {
     };
 
     it('should record exercise completion successfully', async () => {
-      validateExerciseCompletion.mockReturnValue(mockExerciseCompletion);
-      ProgressTracker.recordCompletion.mockResolvedValue(mockProgressEntry);
-      AchievementEngine.checkAchievements.mockResolvedValue([]);
+      (validateExerciseCompletion as jest.MockedFunction<typeof validateExerciseCompletion>).mockReturnValue(mockExerciseCompletion);
+      (ProgressTracker.recordCompletion as jest.MockedFunction<typeof ProgressTracker.recordCompletion>).mockResolvedValue(mockProgressEntry);
+      (AchievementEngine.checkAchievements as jest.MockedFunction<typeof AchievementEngine.checkAchievements>).mockResolvedValue([]);
 
       const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
@@ -259,9 +268,9 @@ describe('API Integration Tests', () => {
         },
       ];
 
-      validateExerciseCompletion.mockReturnValue(mockExerciseCompletion);
-      ProgressTracker.recordCompletion.mockResolvedValue(mockProgressEntry);
-      AchievementEngine.checkAchievements.mockResolvedValue(mockNewAchievements);
+      (validateExerciseCompletion as jest.MockedFunction<typeof validateExerciseCompletion>).mockReturnValue(mockExerciseCompletion);
+      (ProgressTracker.recordCompletion as jest.MockedFunction<typeof ProgressTracker.recordCompletion>).mockResolvedValue(mockProgressEntry);
+      (AchievementEngine.checkAchievements as jest.MockedFunction<typeof AchievementEngine.checkAchievements>).mockResolvedValue(mockNewAchievements);
 
       const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
@@ -344,8 +353,8 @@ describe('API Integration Tests', () => {
     });
 
     it('should handle database errors', async () => {
-      validateExerciseCompletion.mockReturnValue(mockExerciseCompletion);
-      ProgressTracker.recordCompletion.mockRejectedValue(new Error('Database connection failed'));
+      (validateExerciseCompletion as jest.MockedFunction<typeof validateExerciseCompletion>).mockReturnValue(mockExerciseCompletion);
+      (ProgressTracker.recordCompletion as jest.MockedFunction<typeof ProgressTracker.recordCompletion>).mockRejectedValue(new Error('Database connection failed'));
 
       const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
@@ -396,7 +405,7 @@ describe('API Integration Tests', () => {
         },
       ];
 
-      AchievementEngine.getUserAchievements.mockResolvedValue(mockUserAchievements);
+      (AchievementEngine.getUserAchievements as jest.MockedFunction<typeof AchievementEngine.getUserAchievements>).mockResolvedValue(mockUserAchievements);
 
       const request = new MockNextRequest('http://localhost:3000/api/achievements');
       const response = await getAchievements(request);
@@ -428,7 +437,7 @@ describe('API Integration Tests', () => {
     });
 
     it('should handle database errors', async () => {
-      AchievementEngine.getUserAchievements.mockRejectedValue(new Error('Database error'));
+      (AchievementEngine.getUserAchievements as jest.MockedFunction<typeof AchievementEngine.getUserAchievements>).mockRejectedValue(new Error('Database error'));
 
       const request = new MockNextRequest('http://localhost:3000/api/achievements');
       const response = await getAchievements(request);
@@ -459,9 +468,9 @@ describe('API Integration Tests', () => {
         createdAt: new Date(),
       };
 
-      validateExerciseCompletion.mockReturnValue(mockExerciseCompletion);
-      ProgressTracker.recordCompletion.mockResolvedValue(mockProgressEntry);
-      AchievementEngine.checkAchievements.mockResolvedValue([]);
+      (validateExerciseCompletion as jest.MockedFunction<typeof validateExerciseCompletion>).mockReturnValue(mockExerciseCompletion);
+      (ProgressTracker.recordCompletion as jest.MockedFunction<typeof ProgressTracker.recordCompletion>).mockResolvedValue(mockProgressEntry);
+      (AchievementEngine.checkAchievements as jest.MockedFunction<typeof AchievementEngine.checkAchievements>).mockResolvedValue([]);
 
       // Create multiple concurrent requests
       const requests = Array.from({ length: 5 }, () =>
@@ -512,7 +521,7 @@ describe('API Integration Tests', () => {
         },
       };
 
-      validateExerciseCompletion.mockReturnValue(largeExerciseCompletion);
+      (validateExerciseCompletion as jest.MockedFunction<typeof validateExerciseCompletion>).mockReturnValue(largeExerciseCompletion);
       const mockProgressEntry = {
         id: 'progress-123',
         userId: mockUser.id,
@@ -524,12 +533,12 @@ describe('API Integration Tests', () => {
         createdAt: new Date(),
       };
 
-      ProgressTracker.recordCompletion.mockResolvedValue({
+      (ProgressTracker.recordCompletion as jest.MockedFunction<typeof ProgressTracker.recordCompletion>).mockResolvedValue({
         ...mockProgressEntry,
         sessionNotes: largeExerciseCompletion.sessionNotes,
         biometricData: largeExerciseCompletion.biometricData,
       });
-      AchievementEngine.checkAchievements.mockResolvedValue([]);
+      (AchievementEngine.checkAchievements as jest.MockedFunction<typeof AchievementEngine.checkAchievements>).mockResolvedValue([]);
 
       const request = new MockNextRequest('http://localhost:3000/api/progress/record', {
         method: 'POST',
@@ -566,7 +575,7 @@ describe('API Integration Tests', () => {
 
     it('should handle network timeouts gracefully', async () => {
       // Simulate a timeout by making the service hang
-      ProgressTracker.getUserProgress.mockImplementation(() => 
+      (ProgressTracker.getUserProgress as jest.MockedFunction<typeof ProgressTracker.getUserProgress>).mockImplementation(() => 
         new Promise((resolve) => setTimeout(resolve, 30000)) // 30 second timeout
       );
 
@@ -585,7 +594,7 @@ describe('API Integration Tests', () => {
 
       getCurrentUser.mockResolvedValue(realUser);
       getDemoUser.mockReturnValue(demoUser);
-      ProgressTracker.getUserProgress.mockResolvedValue({
+      (ProgressTracker.getUserProgress as jest.MockedFunction<typeof ProgressTracker.getUserProgress>).mockResolvedValue({
         userId: realUser.id,
         totalSessions: 0,
         totalMinutes: 0,
@@ -609,7 +618,7 @@ describe('API Integration Tests', () => {
 
       getCurrentUser.mockResolvedValue(null);
       getDemoUser.mockReturnValue(demoUser);
-      ProgressTracker.getUserProgress.mockResolvedValue({
+      (ProgressTracker.getUserProgress as jest.MockedFunction<typeof ProgressTracker.getUserProgress>).mockResolvedValue({
         userId: demoUser.id,
         totalSessions: 0,
         totalMinutes: 0,
